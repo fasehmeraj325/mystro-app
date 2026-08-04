@@ -1,30 +1,20 @@
+require("dotenv").config();
+
 const express = require("express");
 const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
 const { randomUUID } = require("crypto");
+const db = require("./db");
+const { buildClientPdf } = require("./pdf");
 
 const APP_DIR = __dirname;
 const DATA_DIR = path.join(APP_DIR, "data");
 const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
-const DB_FILE = path.join(DATA_DIR, "submissions.json");
 
 // --- bootstrap storage -------------------------------------------------
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-if (!fs.existsSync(DB_FILE)) fs.writeFileSync(DB_FILE, "[]");
-
-function readSubmissions() {
-  try {
-    return JSON.parse(fs.readFileSync(DB_FILE, "utf-8"));
-  } catch (e) {
-    return [];
-  }
-}
-
-function writeSubmissions(list) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(list, null, 2));
-}
 
 // --- file upload config -------------------------------------------------
 const FILE_FIELDS = [
@@ -107,11 +97,21 @@ app.post(
   "/api/submit",
   assignSubmissionId,
   upload.fields(FILE_FIELDS.map((f) => ({ name: f.name, maxCount: 1 }))),
-  (req, res) => {
-    const b = req.body;
+  async (req, res) => {
+    let clientInfo;
+    try {
+      clientInfo = JSON.parse(req.body.clientInfo || "{}");
+    } catch (e) {
+      return res.status(400).json({ error: "Invalid form data." });
+    }
 
-    if (!b.fullName || !b.email) {
-      return res.status(400).json({ error: "Full name and email are required." });
+    const personal = clientInfo.personal || {};
+    const fullName = [personal.firstName, personal.surname].filter(Boolean).join(" ").trim();
+    const email = personal.email || "";
+    const phone = personal.mobilePhone || "";
+
+    if (!fullName || !email) {
+      return res.status(400).json({ error: "First name, surname, and email are required." });
     }
 
     const files = {};
@@ -128,89 +128,85 @@ app.post(
       }
     }
 
+    const now = new Date().toISOString();
     const submission = {
       id: req.submissionId,
-      fullName: b.fullName,
-      email: b.email,
-      phone: b.phone || "",
-      dob: b.dob || "",
-      employmentStatus: b.employmentStatus || "",
-      annualIncome: b.annualIncome || "",
-      loanAmount: b.loanAmount || "",
-      loanPurpose: b.loanPurpose || "",
-      notes: b.notes || "",
+      fullName,
+      email,
+      phone,
       files,
+      clientInfo,
       status: "New",
-      submittedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      submittedAt: now,
+      updatedAt: now,
     };
 
-    const list = readSubmissions();
-    list.unshift(submission);
-    writeSubmissions(list);
+    await db.insertSubmission(submission);
 
     res.status(201).json({ ok: true, id: submission.id });
   }
 );
 
 // List submissions (summary, for dashboard table)
-app.get("/api/submissions", (req, res) => {
-  const list = readSubmissions().map((s) => ({
-    id: s.id,
-    fullName: s.fullName,
-    email: s.email,
-    phone: s.phone,
-    loanAmount: s.loanAmount,
-    loanPurpose: s.loanPurpose,
-    status: s.status,
-    fileCount: Object.keys(s.files || {}).length,
-    submittedAt: s.submittedAt,
-    updatedAt: s.updatedAt,
-  }));
-  res.json(list);
+app.get("/api/submissions", async (req, res) => {
+  const list = await db.listSubmissions();
+  res.json(
+    list.map((s) => ({
+      id: s.id,
+      fullName: s.fullName,
+      email: s.email,
+      phone: s.phone,
+      occupation: (s.clientInfo && s.clientInfo.employment && s.clientInfo.employment.occupation) || "",
+      status: s.status,
+      fileCount: Object.keys(s.files || {}).length,
+      submittedAt: s.submittedAt,
+      updatedAt: s.updatedAt,
+    }))
+  );
 });
 
 // Full detail for one submission
-app.get("/api/submissions/:id", (req, res) => {
-  const list = readSubmissions();
-  const submission = list.find((s) => s.id === req.params.id);
+app.get("/api/submissions/:id", async (req, res) => {
+  const submission = await db.getSubmission(req.params.id);
   if (!submission) return res.status(404).json({ error: "Not found" });
   res.json(submission);
 });
 
 // Update status (New / In Review / Approved / Rejected)
-app.patch("/api/submissions/:id", (req, res) => {
-  const list = readSubmissions();
-  const idx = list.findIndex((s) => s.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: "Not found" });
-
+app.patch("/api/submissions/:id", async (req, res) => {
   const allowed = ["New", "In Review", "Approved", "Rejected"];
-  if (req.body.status && allowed.includes(req.body.status)) {
-    list[idx].status = req.body.status;
-    list[idx].updatedAt = new Date().toISOString();
-    writeSubmissions(list);
+  if (!req.body.status || !allowed.includes(req.body.status)) {
+    const submission = await db.getSubmission(req.params.id);
+    if (!submission) return res.status(404).json({ error: "Not found" });
+    return res.json(submission);
   }
-  res.json(list[idx]);
+
+  const submission = await db.updateSubmissionStatus(req.params.id, req.body.status);
+  if (!submission) return res.status(404).json({ error: "Not found" });
+  res.json(submission);
 });
 
 // Delete a submission and its files
-app.delete("/api/submissions/:id", (req, res) => {
-  const list = readSubmissions();
-  const idx = list.findIndex((s) => s.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: "Not found" });
+app.delete("/api/submissions/:id", async (req, res) => {
+  const deleted = await db.deleteSubmission(req.params.id);
+  if (!deleted) return res.status(404).json({ error: "Not found" });
 
   const dir = path.join(UPLOADS_DIR, req.params.id);
   if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
 
-  list.splice(idx, 1);
-  writeSubmissions(list);
   res.json({ ok: true });
 });
 
+// Download the full client information form as a PDF
+app.get("/api/submissions/:id/pdf", async (req, res) => {
+  const submission = await db.getSubmission(req.params.id);
+  if (!submission) return res.status(404).json({ error: "Not found" });
+  buildClientPdf(res, submission);
+});
+
 // Download / view an uploaded file
-app.get("/api/submissions/:id/files/:field", (req, res) => {
-  const list = readSubmissions();
-  const submission = list.find((s) => s.id === req.params.id);
+app.get("/api/submissions/:id/files/:field", async (req, res) => {
+  const submission = await db.getSubmission(req.params.id);
   if (!submission) return res.status(404).json({ error: "Not found" });
 
   const fileMeta = submission.files && submission.files[req.params.field];
@@ -223,8 +219,16 @@ app.get("/api/submissions/:id/files/:field", (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Mystro Lite running at http://localhost:${PORT}`);
-  console.log(`Client intake form: http://localhost:${PORT}/`);
-  console.log(`Dashboard:          http://localhost:${PORT}/dashboard.html`);
-});
+
+db.initSchema()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Mystro Lite running at http://localhost:${PORT}`);
+      console.log(`Client intake form: http://localhost:${PORT}/`);
+      console.log(`Dashboard:          http://localhost:${PORT}/dashboard.html`);
+    });
+  })
+  .catch((err) => {
+    console.error("Failed to initialize database:", err.message);
+    process.exit(1);
+  });

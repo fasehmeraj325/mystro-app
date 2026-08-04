@@ -16,63 +16,376 @@
 </div>
 
 <div class="wrap">
-  <h1>Client Onboarding</h1>
+  <h1>Client Information</h1>
   <p class="subtitle">Fill in your details and upload the required documents. We'll review your submission and get back to you.</p>
 
   <div id="msg" class="msg hidden"></div>
 
   <form id="intakeForm" class="card" enctype="multipart/form-data">
 
-    <div class="section-title">Contact details</div>
+    <div class="section-title">Applicants</div>
     <div class="grid2">
       <div class="field">
-        <label for="fullName">Full name</label>
-        <input type="text" id="fullName" name="fullName" required />
-      </div>
-      <div class="field">
-        <label for="email">Email</label>
-        <input type="email" id="email" name="email" required />
-      </div>
-      <div class="field">
-        <label for="phone">Phone <span class="opt">(optional)</span></label>
-        <input type="tel" id="phone" name="phone" />
-      </div>
-      <div class="field">
-        <label for="dob">Date of birth <span class="opt">(optional)</span></label>
-        <input type="date" id="dob" name="dob" />
+        <label for="applicants">Who is this application for?</label>
+        <select id="applicants" name="applicants">
+          <option>Me only</option>
+          <option>Me and someone else</option>
+        </select>
       </div>
     </div>
 
-    <div class="section-title">Financial details</div>
+    <div class="section-title">Personal details</div>
     <div class="grid2">
       <div class="field">
-        <label for="employmentStatus">Employment status</label>
-        <select id="employmentStatus" name="employmentStatus">
-          <option value="">Select...</option>
-          <option>Employed full-time</option>
-          <option>Employed part-time</option>
-          <option>Self-employed</option>
-          <option>Unemployed</option>
-          <option>Retired</option>
+        <label for="p_title">Title</label>
+        <select id="p_title">
+          <option>Mr.</option>
+          <option>Mrs.</option>
+          <option>Ms.</option>
+          <option>Dr.</option>
+          <option>Other</option>
         </select>
       </div>
       <div class="field">
-        <label for="annualIncome">Annual income <span class="opt">(optional)</span></label>
-        <input type="number" id="annualIncome" name="annualIncome" min="0" placeholder="e.g. 75000" />
+        <label for="p_firstName">First name</label>
+        <input type="text" id="p_firstName" required />
       </div>
       <div class="field">
-        <label for="loanAmount">Requested amount</label>
-        <input type="number" id="loanAmount" name="loanAmount" min="0" required placeholder="e.g. 25000" />
+        <label for="p_surname">Surname</label>
+        <input type="text" id="p_surname" required />
       </div>
       <div class="field">
-        <label for="loanPurpose">Purpose</label>
-        <input type="text" id="loanPurpose" name="loanPurpose" placeholder="e.g. Home renovation" />
+        <label for="p_hasMiddleName">Do you have a middle name?</label>
+        <select id="p_hasMiddleName" class="yesno" data-show="#p_middleNameField">
+          <option>No</option>
+          <option>Yes</option>
+        </select>
+      </div>
+      <div class="field hidden" id="p_middleNameField">
+        <label for="p_middleName">Middle name</label>
+        <input type="text" id="p_middleName" />
+      </div>
+      <div class="field">
+        <label for="p_email">Email address</label>
+        <input type="email" id="p_email" required />
+      </div>
+      <div class="field">
+        <label for="p_mobile">Mobile phone</label>
+        <input type="tel" id="p_mobile" />
+      </div>
+      <div class="field">
+        <label for="p_citizen">Australian citizen?</label>
+        <select id="p_citizen">
+          <option>Yes</option>
+          <option>No</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="p_license">Australian driving licence?</label>
+        <select id="p_license">
+          <option>Yes</option>
+          <option>No</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="p_marital">Marital status</label>
+        <select id="p_marital">
+          <option>Single</option>
+          <option>Married</option>
+          <option>De facto</option>
+          <option>Divorced</option>
+          <option>Widowed</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="p_dependants">Dependants?</label>
+        <select id="p_dependants" class="yesno" data-show="#p_dependantsAgesField">
+          <option>No</option>
+          <option>Yes</option>
+        </select>
+      </div>
+      <div class="field hidden" id="p_dependantsAgesField">
+        <label for="p_dependantsAges">Dependants age(s)</label>
+        <input type="text" id="p_dependantsAges" placeholder="e.g. 14, 9" />
       </div>
     </div>
 
+    <div class="section-title">Address</div>
+    <div class="grid2">
+      <div class="field" style="grid-column:1/-1;">
+        <label for="a_residentialAddress">Residential address</label>
+        <input type="text" id="a_residentialAddress" required />
+      </div>
+      <div class="field">
+        <label for="a_residentialStatus">Residential status</label>
+        <select id="a_residentialStatus">
+          <option>Owned outright</option>
+          <option>Mortgaged</option>
+          <option>Renting</option>
+          <option>Living with family</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="a_addressStartDate">Address start date</label>
+        <input type="date" id="a_addressStartDate" />
+      </div>
+      <div class="field">
+        <label for="a_postalSame">Postal same as residential?</label>
+        <select id="a_postalSame" class="yesno" data-show-inverse="#a_postalAddressField">
+          <option>Yes</option>
+          <option>No</option>
+        </select>
+      </div>
+      <div class="field hidden" id="a_postalAddressField">
+        <label for="a_postalAddress">Postal address</label>
+        <input type="text" id="a_postalAddress" />
+      </div>
+      <div class="field" style="grid-column:1/-1;">
+        <label for="a_previousAddress">Previous residential address <span class="opt">(optional)</span></label>
+        <input type="text" id="a_previousAddress" />
+      </div>
+      <div class="field">
+        <label for="a_previousAddressStartDate">Previous address start date</label>
+        <input type="date" id="a_previousAddressStartDate" />
+      </div>
+      <div class="field">
+        <label for="a_previousAddressStopDate">Previous address stop date</label>
+        <input type="date" id="a_previousAddressStopDate" />
+      </div>
+      <div class="field">
+        <label for="a_afterSettlementKnown">After-settlement address known?</label>
+        <select id="a_afterSettlementKnown" class="yesno" data-show="#a_afterSettlementAddressField">
+          <option>No</option>
+          <option>Yes</option>
+        </select>
+      </div>
+      <div class="field hidden" id="a_afterSettlementAddressField">
+        <label for="a_afterSettlementAddress">After-settlement address</label>
+        <input type="text" id="a_afterSettlementAddress" />
+      </div>
+    </div>
+
+    <div class="section-title">Employment &amp; income</div>
+    <div class="grid2">
+      <div class="field">
+        <label for="e_currentlyEmployed">Currently employed?</label>
+        <select id="e_currentlyEmployed" class="yesno" data-show="#e_currentJobFields">
+          <option>Yes</option>
+          <option>No</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="e_employmentType">Current employment type</label>
+        <select id="e_employmentType">
+          <option>PAYG</option>
+          <option>Self-employed</option>
+          <option>Contractor</option>
+          <option>Not employed</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="e_secondJob">Second job?</label>
+        <select id="e_secondJob">
+          <option>No</option>
+          <option>Yes</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="e_currentJobFields" class="grid2">
+      <div class="field" style="grid-column:1/-1;">
+        <label for="e_employerName">Employer's business name</label>
+        <input type="text" id="e_employerName" />
+      </div>
+      <div class="field">
+        <label for="e_employmentStatus">Current employment status</label>
+        <select id="e_employmentStatus">
+          <option>Full Time</option>
+          <option>Part Time</option>
+          <option>Casual</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="e_employmentStartDate">Employment start date</label>
+        <input type="date" id="e_employmentStartDate" />
+      </div>
+      <div class="field">
+        <label for="e_occupation">Occupation</label>
+        <input type="text" id="e_occupation" />
+      </div>
+      <div class="field">
+        <label for="e_incomeFrequency">Income frequency</label>
+        <select id="e_incomeFrequency">
+          <option>Weekly</option>
+          <option>Fortnightly</option>
+          <option>Monthly</option>
+          <option>Annually</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="e_grossIncome">Pre-tax income (gross)</label>
+        <input type="number" id="e_grossIncome" min="0" />
+      </div>
+      <div class="field" style="grid-column:1/-1;">
+        <label for="e_employerAddress">Employer's address</label>
+        <input type="text" id="e_employerAddress" />
+      </div>
+      <div class="field">
+        <label for="e_employerContactName">Employer contact name</label>
+        <input type="text" id="e_employerContactName" />
+      </div>
+      <div class="field">
+        <label for="e_employerNumber">Employer number</label>
+        <input type="tel" id="e_employerNumber" />
+      </div>
+    </div>
+
+    <div class="section-title">Additional income</div>
+    <div class="grid2">
+      <div class="field">
+        <label for="ai_fromEmployment">Additional income from employment?</label>
+        <select id="ai_fromEmployment" class="yesno" data-show="#ai_sourcesField">
+          <option>No</option>
+          <option>Yes</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="ai_fromGovernment">Additional income from government?</label>
+        <select id="ai_fromGovernment">
+          <option>No</option>
+          <option>Yes</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="ai_fromInvestments">Additional income from investments?</label>
+        <select id="ai_fromInvestments">
+          <option>No</option>
+          <option>Yes</option>
+        </select>
+      </div>
+    </div>
+    <div class="field hidden" id="ai_sourcesField">
+      <label>Additional income source(s)</label>
+      <div class="checks" id="ai_sourceChecks">
+        <label class="check"><input type="checkbox" value="Regular Overtime" /> Regular Overtime</label>
+        <label class="check"><input type="checkbox" value="Bonus" /> Bonus</label>
+        <label class="check"><input type="checkbox" value="Commission" /> Commission</label>
+        <label class="check"><input type="checkbox" value="Work Allowance" /> Work Allowance</label>
+        <label class="check"><input type="checkbox" value="Workers Compensation" /> Workers Compensation</label>
+        <label class="check"><input type="checkbox" value="Superannuation" /> Superannuation</label>
+      </div>
+      <div id="ai_sourceDetails"></div>
+    </div>
+
+    <div class="section-title">Real estate assets</div>
+    <div class="grid2">
+      <div class="field">
+        <label for="re_hasInvestment">Do you own investment properties?</label>
+        <select id="re_hasInvestment" class="yesno" data-show="#re_investmentBlock">
+          <option>No</option>
+          <option>Yes</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="subsection">Existing home</div>
+    <div class="grid2" id="re_existingHome">
+      <div class="field">
+        <label for="reh_estimatedValue">Estimated value</label>
+        <input type="number" id="reh_estimatedValue" min="0" />
+      </div>
+      <div class="field">
+        <label for="reh_lender">Lender</label>
+        <input type="text" id="reh_lender" />
+      </div>
+      <div class="field">
+        <label for="reh_amountOwing">Amount owing</label>
+        <input type="number" id="reh_amountOwing" min="0" />
+      </div>
+      <div class="field">
+        <label for="reh_originalLoanAmount">Original loan amount</label>
+        <input type="number" id="reh_originalLoanAmount" min="0" />
+      </div>
+      <div class="field">
+        <label for="reh_interestRateKnown">Interest rate known?</label>
+        <select id="reh_interestRateKnown" class="yesno" data-show="#reh_interestRateField">
+          <option>No</option>
+          <option>Yes</option>
+        </select>
+      </div>
+      <div class="field hidden" id="reh_interestRateField">
+        <label for="reh_interestRate">Interest rate (%)</label>
+        <input type="number" step="0.01" id="reh_interestRate" />
+      </div>
+      <div class="field">
+        <label for="reh_isFixed">Fixed rate?</label>
+        <select id="reh_isFixed">
+          <option>No</option>
+          <option>Yes</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="reh_monthlyRepayment">Monthly repayment amount</label>
+        <input type="number" min="0" id="reh_monthlyRepayment" />
+      </div>
+      <div class="field">
+        <label for="reh_isRefinance">Is this a refinance?</label>
+        <select id="reh_isRefinance">
+          <option>No</option>
+          <option>Yes</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="re_investmentBlock" class="hidden">
+      <div class="subsection">Investment properties</div>
+      <div id="re_investmentList"></div>
+      <button type="button" class="secondary" id="re_addInvestment">+ Add investment property</button>
+    </div>
+
+    <div class="section-title">Assets</div>
     <div class="field">
-      <label for="notes">Anything else we should know? <span class="opt">(optional)</span></label>
-      <textarea id="notes" name="notes"></textarea>
+      <label>What assets do you own?</label>
+      <div class="checks" id="assetChecks">
+        <label class="check"><input type="checkbox" value="Car" /> Car</label>
+        <label class="check"><input type="checkbox" value="Home and Contents" /> Home and Contents</label>
+        <label class="check"><input type="checkbox" value="Other Investments" /> Other Investments</label>
+        <label class="check"><input type="checkbox" value="Savings" /> Savings</label>
+        <label class="check"><input type="checkbox" value="Superannuation" /> Superannuation</label>
+        <label class="check"><input type="checkbox" value="Other Assets" /> Other Assets</label>
+        <label class="check"><input type="checkbox" value="No Assets" /> No Assets</label>
+      </div>
+    </div>
+    <div id="savingsBlock" class="hidden">
+      <div class="subsection">Savings accounts</div>
+      <div id="savingsList"></div>
+      <button type="button" class="secondary" id="addSavings">+ Add savings account</button>
+    </div>
+
+    <div class="section-title">Liabilities</div>
+    <div class="field">
+      <label>What liabilities do you have?</label>
+      <div class="checks" id="liabilityChecks">
+        <label class="check"><input type="checkbox" value="Credit Cards" /> Credit Cards</label>
+        <label class="check"><input type="checkbox" value="Personal Loans" /> Personal Loans</label>
+        <label class="check"><input type="checkbox" value="HECS/HELP" /> HECS/HELP</label>
+        <label class="check"><input type="checkbox" value="Chattel Mortgage" /> Chattel Mortgage</label>
+        <label class="check"><input type="checkbox" value="Outstanding taxation" /> Outstanding taxation</label>
+        <label class="check"><input type="checkbox" value="Other" /> Other</label>
+        <label class="check"><input type="checkbox" value="Payday loans / Zip Pay / After Pay" /> Payday loans / Zip Pay / After Pay</label>
+        <label class="check"><input type="checkbox" value="No liabilities" /> No liabilities</label>
+      </div>
+    </div>
+    <div id="personalLoansBlock" class="hidden">
+      <div class="subsection">Personal loans</div>
+      <div id="personalLoansList"></div>
+      <button type="button" class="secondary" id="addPersonalLoan">+ Add personal loan</button>
+    </div>
+    <div id="creditCardsBlock" class="hidden">
+      <div class="subsection">Credit cards</div>
+      <div id="creditCardsList"></div>
+      <button type="button" class="secondary" id="addCreditCard">+ Add credit card</button>
     </div>
 
     <div class="section-title">Documents</div>
@@ -117,6 +430,87 @@
   </form>
 </div>
 
+<template id="tpl-investment">
+  <div class="repeat-item">
+    <button type="button" class="remove-item">&times;</button>
+    <div class="grid2">
+      <div class="field" style="grid-column:1/-1;">
+        <label>Address</label>
+        <input type="text" data-field="address" />
+      </div>
+      <div class="field"><label>Estimated value</label><input type="number" min="0" data-field="estimatedValue" /></div>
+      <div class="field"><label>Rent income</label><input type="number" min="0" data-field="rentIncome" /></div>
+      <div class="field"><label>Is financed?</label>
+        <select class="yesno" data-field="isFinanced">
+          <option>Yes</option><option>No</option>
+        </select>
+      </div>
+      <div class="field"><label>Lender</label><input type="text" data-field="lender" /></div>
+      <div class="field"><label>Amount owing</label><input type="number" min="0" data-field="amountOwing" /></div>
+      <div class="field"><label>Original loan amount</label><input type="number" min="0" data-field="originalLoanAmount" /></div>
+      <div class="field"><label>Interest rate known?</label>
+        <select class="yesno" data-field="interestRateKnown" data-show-sibling=".interestRateField">
+          <option>No</option><option>Yes</option>
+        </select>
+      </div>
+      <div class="field interestRateField hidden"><label>Interest rate (%)</label><input type="number" step="0.01" data-field="interestRate" /></div>
+      <div class="field"><label>Fixed rate?</label>
+        <select data-field="isFixed"><option>No</option><option>Yes</option></select>
+      </div>
+      <div class="field"><label>Monthly repayment amount</label><input type="number" min="0" data-field="monthlyRepayment" /></div>
+      <div class="field"><label>Is refinance?</label>
+        <select data-field="isRefinance"><option>No</option><option>Yes</option></select>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-savings">
+  <div class="repeat-item">
+    <button type="button" class="remove-item">&times;</button>
+    <div class="grid2">
+      <div class="field"><label>Savings amount</label><input type="number" min="0" data-field="savingsAmount" /></div>
+      <div class="field"><label>Financial institution</label><input type="text" data-field="financialInstitution" /></div>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-personal-loan">
+  <div class="repeat-item">
+    <button type="button" class="remove-item">&times;</button>
+    <div class="grid2">
+      <div class="field"><label>Lender</label><input type="text" data-field="lender" /></div>
+      <div class="field"><label>Monthly repayment amount</label><input type="number" min="0" data-field="monthlyRepayment" /></div>
+      <div class="field"><label>Amount owing</label><input type="number" min="0" data-field="amountOwing" /></div>
+      <div class="field"><label>Original loan amount</label><input type="number" min="0" data-field="originalLoanAmount" /></div>
+      <div class="field"><label>Interest rate known?</label>
+        <select class="yesno" data-field="interestRateKnown" data-show-sibling=".interestRateField">
+          <option>No</option><option>Yes</option>
+        </select>
+      </div>
+      <div class="field interestRateField hidden"><label>Interest rate (%)</label><input type="number" step="0.01" data-field="interestRate" /></div>
+    </div>
+  </div>
+</template>
+
+<template id="tpl-credit-card">
+  <div class="repeat-item">
+    <button type="button" class="remove-item">&times;</button>
+    <div class="grid2">
+      <div class="field"><label>Lender</label><input type="text" data-field="lender" /></div>
+      <div class="field"><label>Monthly repayment amount</label><input type="number" min="0" data-field="monthlyRepayment" /></div>
+      <div class="field"><label>Credit limit</label><input type="number" min="0" data-field="creditLimit" /></div>
+      <div class="field"><label>Amount owing</label><input type="number" min="0" data-field="amountOwing" /></div>
+      <div class="field"><label>Interest rate known?</label>
+        <select class="yesno" data-field="interestRateKnown" data-show-sibling=".interestRateField">
+          <option>No</option><option>Yes</option>
+        </select>
+      </div>
+      <div class="field interestRateField hidden"><label>Interest rate (%)</label><input type="number" step="0.01" data-field="interestRate" /></div>
+    </div>
+  </div>
+</template>
+
 <script>
 document.querySelectorAll('.file-drop input[type=file]').forEach(input => {
   input.addEventListener('change', () => {
@@ -124,6 +518,193 @@ document.querySelectorAll('.file-drop input[type=file]').forEach(input => {
     label.textContent = input.files.length ? input.files[0].name : label.dataset.empty;
   });
 });
+
+// --- generic Yes/No show/hide -------------------------------------------
+function wireYesNoToggles(root) {
+  root.querySelectorAll('select.yesno').forEach(sel => {
+    const apply = () => {
+      const showTarget = sel.dataset.show ? root.querySelector(sel.dataset.show) : null;
+      const hideTarget = sel.dataset.showInverse ? root.querySelector(sel.dataset.showInverse) : null;
+      const siblingTarget = sel.dataset.showSibling
+        ? sel.closest('.repeat-item, .grid2, .field')?.parentElement?.querySelector(sel.dataset.showSibling)
+        : null;
+
+      if (showTarget) showTarget.classList.toggle('hidden', sel.value !== 'Yes');
+      if (hideTarget) hideTarget.classList.toggle('hidden', sel.value === 'Yes');
+      if (siblingTarget) siblingTarget.classList.toggle('hidden', sel.value !== 'Yes');
+    };
+    sel.addEventListener('change', apply);
+    apply();
+  });
+}
+wireYesNoToggles(document);
+
+// --- repeatable groups ---------------------------------------------------
+function setupRepeatable(containerId, addBtnId, templateId) {
+  const container = document.getElementById(containerId);
+  const template = document.getElementById(templateId);
+
+  function addItem() {
+    const node = template.content.cloneNode(true);
+    container.appendChild(node);
+    const item = container.lastElementChild;
+    item.querySelector('.remove-item').addEventListener('click', () => item.remove());
+    wireYesNoToggles(item);
+    return item;
+  }
+
+  document.getElementById(addBtnId).addEventListener('click', addItem);
+  return { container, addItem };
+}
+
+function readRepeatable(container) {
+  return Array.from(container.querySelectorAll('.repeat-item')).map(item => {
+    const obj = {};
+    item.querySelectorAll('[data-field]').forEach(el => { obj[el.dataset.field] = el.value; });
+    return obj;
+  });
+}
+
+const investmentRepeat = setupRepeatable('re_investmentList', 're_addInvestment', 'tpl-investment');
+const savingsRepeat = setupRepeatable('savingsList', 'addSavings', 'tpl-savings');
+const personalLoanRepeat = setupRepeatable('personalLoansList', 'addPersonalLoan', 'tpl-personal-loan');
+const creditCardRepeat = setupRepeatable('creditCardsList', 'addCreditCard', 'tpl-credit-card');
+
+// --- checkbox-driven sections ---------------------------------------------
+function checkedValues(containerId) {
+  return Array.from(document.querySelectorAll(`#${containerId} input[type=checkbox]:checked`)).map(c => c.value);
+}
+
+document.getElementById('assetChecks').addEventListener('change', () => {
+  const owns = checkedValues('assetChecks');
+  document.getElementById('savingsBlock').classList.toggle('hidden', !owns.includes('Savings'));
+});
+
+document.getElementById('liabilityChecks').addEventListener('change', () => {
+  const types = checkedValues('liabilityChecks');
+  document.getElementById('personalLoansBlock').classList.toggle('hidden', !types.includes('Personal Loans'));
+  document.getElementById('creditCardsBlock').classList.toggle('hidden', !types.includes('Credit Cards'));
+});
+
+// --- additional income source detail blocks --------------------------------
+const additionalIncomeDetails = {};
+document.getElementById('ai_sourceChecks').addEventListener('change', () => {
+  const sources = checkedValues('ai_sourceChecks');
+  const detailsEl = document.getElementById('ai_sourceDetails');
+  detailsEl.innerHTML = '';
+  sources.forEach(source => {
+    const saved = additionalIncomeDetails[source] || {};
+    const block = document.createElement('div');
+    block.className = 'grid2 income-source-detail';
+    block.innerHTML = `
+      <div class="field" style="grid-column:1/-1;"><label>${source} — frequency &amp; amount</label></div>
+      <div class="field">
+        <label>Frequency</label>
+        <select data-source="${source}" data-field="frequency">
+          <option${saved.frequency === 'Weekly' ? ' selected' : ''}>Weekly</option>
+          <option${saved.frequency === 'Fortnightly' ? ' selected' : ''}>Fortnightly</option>
+          <option${!saved.frequency || saved.frequency === 'Monthly' ? ' selected' : ''}>Monthly</option>
+          <option${saved.frequency === 'Annually' ? ' selected' : ''}>Annually</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Monthly amount</label>
+        <input type="number" min="0" data-source="${source}" data-field="monthlyAmount" value="${saved.monthlyAmount || ''}" />
+      </div>
+    `;
+    detailsEl.appendChild(block);
+  });
+});
+
+function collectAdditionalIncomeDetails() {
+  const result = {};
+  document.querySelectorAll('#ai_sourceDetails [data-source]').forEach(el => {
+    const source = el.dataset.source;
+    result[source] = result[source] || {};
+    result[source][el.dataset.field] = el.value;
+  });
+  return result;
+}
+
+// --- build submission payload ---------------------------------------------
+function val(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+
+function buildClientInfo() {
+  return {
+    applicants: val('applicants'),
+    personal: {
+      title: val('p_title'),
+      firstName: val('p_firstName'),
+      surname: val('p_surname'),
+      hasMiddleName: val('p_hasMiddleName'),
+      middleName: val('p_middleName'),
+      email: val('p_email'),
+      mobilePhone: val('p_mobile'),
+      australianCitizen: val('p_citizen'),
+      drivingLicense: val('p_license'),
+      maritalStatus: val('p_marital'),
+      dependants: val('p_dependants'),
+      dependantsAges: val('p_dependantsAges'),
+    },
+    address: {
+      residentialAddress: val('a_residentialAddress'),
+      residentialStatus: val('a_residentialStatus'),
+      addressStartDate: val('a_addressStartDate'),
+      postalSameAsResidential: val('a_postalSame'),
+      postalAddress: val('a_postalAddress'),
+      previousAddress: val('a_previousAddress'),
+      previousAddressStartDate: val('a_previousAddressStartDate'),
+      previousAddressStopDate: val('a_previousAddressStopDate'),
+      afterSettlementAddressKnown: val('a_afterSettlementKnown'),
+      afterSettlementAddress: val('a_afterSettlementAddress'),
+    },
+    employment: {
+      currentlyEmployed: val('e_currentlyEmployed'),
+      employmentType: val('e_employmentType'),
+      secondJob: val('e_secondJob'),
+      employerName: val('e_employerName'),
+      employmentStatus: val('e_employmentStatus'),
+      employmentStartDate: val('e_employmentStartDate'),
+      occupation: val('e_occupation'),
+      incomeFrequency: val('e_incomeFrequency'),
+      grossIncome: val('e_grossIncome'),
+      employerAddress: val('e_employerAddress'),
+      employerContactName: val('e_employerContactName'),
+      employerNumber: val('e_employerNumber'),
+    },
+    additionalIncome: {
+      fromEmployment: val('ai_fromEmployment'),
+      sources: checkedValues('ai_sourceChecks'),
+      sourceDetails: collectAdditionalIncomeDetails(),
+      fromGovernment: val('ai_fromGovernment'),
+      fromInvestments: val('ai_fromInvestments'),
+    },
+    realEstate: {
+      hasInvestmentProperties: val('re_hasInvestment'),
+      existingHome: {
+        estimatedValue: val('reh_estimatedValue'),
+        lender: val('reh_lender'),
+        amountOwing: val('reh_amountOwing'),
+        originalLoanAmount: val('reh_originalLoanAmount'),
+        interestRateKnown: val('reh_interestRateKnown'),
+        interestRate: val('reh_interestRate'),
+        isFixed: val('reh_isFixed'),
+        monthlyRepayment: val('reh_monthlyRepayment'),
+        isRefinance: val('reh_isRefinance'),
+      },
+      investmentProperties: readRepeatable(investmentRepeat.container),
+    },
+    assets: {
+      owned: checkedValues('assetChecks'),
+      savingsAccounts: readRepeatable(savingsRepeat.container),
+    },
+    liabilities: {
+      types: checkedValues('liabilityChecks'),
+      personalLoans: readRepeatable(personalLoanRepeat.container),
+      creditCards: readRepeatable(creditCardRepeat.container),
+    },
+  };
+}
 
 const form = document.getElementById('intakeForm');
 const msg = document.getElementById('msg');
@@ -136,9 +717,12 @@ form.addEventListener('submit', async (e) => {
   submitBtn.textContent = 'Submitting...';
 
   try {
+    const fd = new FormData(form);
+    fd.append('clientInfo', JSON.stringify(buildClientInfo()));
+
     const res = await fetch('/api/submit', {
       method: 'POST',
-      body: new FormData(form),
+      body: fd,
     });
     const data = await res.json();
 
@@ -148,6 +732,12 @@ form.addEventListener('submit', async (e) => {
     msg.textContent = "Thanks — your application has been submitted. We'll be in touch shortly.";
     form.reset();
     document.querySelectorAll('.file-drop .fname').forEach(el => el.textContent = el.dataset.empty);
+    document.querySelectorAll('.repeat-item').forEach(el => el.remove());
+    document.getElementById('ai_sourceDetails').innerHTML = '';
+    wireYesNoToggles(document);
+    document.getElementById('savingsBlock').classList.add('hidden');
+    document.getElementById('personalLoansBlock').classList.add('hidden');
+    document.getElementById('creditCardsBlock').classList.add('hidden');
   } catch (err) {
     msg.className = 'msg err';
     msg.textContent = err.message;

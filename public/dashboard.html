@@ -27,8 +27,8 @@
       <thead>
         <tr>
           <th>Name</th>
-          <th>Amount</th>
-          <th>Purpose</th>
+          <th>Email</th>
+          <th>Phone</th>
           <th>Docs</th>
           <th>Status</th>
           <th>Submitted</th>
@@ -41,19 +41,22 @@
 </div>
 
 <div class="overlay hidden" id="overlay">
-  <div class="modal">
+  <div class="modal wide-modal">
     <div class="modal-head">
       <div>
         <h2 id="mName" style="margin:0 0 4px;font-size:19px;"></h2>
         <div id="mEmail" style="color:var(--muted);font-size:13px;"></div>
       </div>
-      <button class="modal-close" id="closeModal">&times;</button>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <a id="pdfBtn" class="pdf-btn" href="#" target="_blank">⬇ Download Client Form (PDF)</a>
+        <button class="modal-close" id="closeModal">&times;</button>
+      </div>
     </div>
 
-    <div class="detail-grid" id="detailGrid"></div>
+    <div id="sections"></div>
 
     <div class="section-title" style="margin-top:0;">Documents</div>
-    <div class="file-list" id="fileList"></div>
+    <div id="fileList"></div>
 
     <div class="section-title">Status</div>
     <div class="status-row" id="statusRow"></div>
@@ -66,6 +69,18 @@ let currentId = null;
 function fmtDate(iso) {
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function fmtMoney(v) {
+  if (v === undefined || v === null || v === '') return '—';
+  const n = Number(v);
+  return isNaN(n) ? String(v) : '$' + n.toLocaleString();
+}
+
+function fmtVal(v) {
+  if (v === undefined || v === null || v === '') return '—';
+  if (Array.isArray(v)) return v.length ? v.join(', ') : '—';
+  return String(v);
 }
 
 function badgeClass(status) {
@@ -88,8 +103,8 @@ async function loadTable() {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${s.fullName}</td>
-        <td>${s.loanAmount ? '$' + Number(s.loanAmount).toLocaleString() : '—'}</td>
-        <td>${s.loanPurpose || '—'}</td>
+        <td>${s.email || '—'}</td>
+        <td>${s.phone || '—'}</td>
         <td>${s.fileCount} file${s.fileCount === 1 ? '' : 's'}</td>
         <td><span class="badge ${badgeClass(s.status)}">${s.status}</span></td>
         <td>${fmtDate(s.submittedAt)}</td>
@@ -118,6 +133,147 @@ function renderStats(list) {
   `).join('');
 }
 
+// --- detail rendering helpers ---------------------------------------------
+function detailGrid(pairs) {
+  const rows = pairs
+    .filter(([, v]) => v !== undefined)
+    .map(([k, v]) => `<div><div class="k">${k}</div><div class="v">${fmtVal(v)}</div></div>`)
+    .join('');
+  return `<div class="detail-grid">${rows}</div>`;
+}
+
+function sectionBlock(title, innerHtml) {
+  return `<div class="section-title">${title}</div>${innerHtml}`;
+}
+
+function subBlock(title, innerHtml) {
+  return `<div class="subsection">${title}</div>${innerHtml}`;
+}
+
+function renderSections(s) {
+  const info = s.clientInfo || {};
+  const p = info.personal || {};
+  const a = info.address || {};
+  const e = info.employment || {};
+  const ai = info.additionalIncome || {};
+  const re = info.realEstate || {};
+  const reh = re.existingHome || {};
+  const assets = info.assets || {};
+  const liabilities = info.liabilities || {};
+
+  let html = '';
+
+  html += sectionBlock('Contact & Applicants', detailGrid([
+    ['Phone', s.phone],
+    ['Applicants', info.applicants],
+    ['Submitted', fmtDate(s.submittedAt)],
+    ['Last updated', fmtDate(s.updatedAt)],
+  ]));
+
+  if (Object.keys(p).length) {
+    html += sectionBlock('Personal Details', detailGrid([
+      ['Title', p.title], ['First name', p.firstName], ['Surname', p.surname],
+      ['Middle name', p.hasMiddleName === 'Yes' ? p.middleName : '—'],
+      ['Australian citizen', p.australianCitizen], ['Driving licence', p.drivingLicense],
+      ['Marital status', p.maritalStatus], ['Dependants', p.dependants],
+      ['Dependants age(s)', p.dependantsAges],
+    ]));
+  }
+
+  if (Object.keys(a).length) {
+    html += sectionBlock('Address', detailGrid([
+      ['Residential address', a.residentialAddress], ['Residential status', a.residentialStatus],
+      ['Address start date', a.addressStartDate],
+      ['Postal address', a.postalSameAsResidential === 'Yes' ? 'Same as residential' : a.postalAddress],
+      ['Previous address', a.previousAddress],
+      ['Previous address start', a.previousAddressStartDate],
+      ['Previous address stop', a.previousAddressStopDate],
+      ['After-settlement address', a.afterSettlementAddressKnown === 'Yes' ? a.afterSettlementAddress : '—'],
+    ]));
+  }
+
+  if (Object.keys(e).length) {
+    html += sectionBlock('Employment & Income', detailGrid([
+      ['Currently employed', e.currentlyEmployed], ['Employment type', e.employmentType],
+      ['Second job', e.secondJob], ['Employer', e.employerName],
+      ['Employment status', e.employmentStatus], ['Employment start date', e.employmentStartDate],
+      ['Occupation', e.occupation], ['Income frequency', e.incomeFrequency],
+      ['Pre-tax income (gross)', e.grossIncome ? fmtMoney(e.grossIncome) : undefined],
+      ['Employer address', e.employerAddress], ['Employer contact', e.employerContactName],
+      ['Employer number', e.employerNumber],
+    ]));
+  }
+
+  if (Object.keys(ai).length) {
+    let inner = detailGrid([
+      ['From employment', ai.fromEmployment], ['Source(s)', ai.sources],
+      ['From government', ai.fromGovernment], ['From investments', ai.fromInvestments],
+    ]);
+    const details = ai.sourceDetails || {};
+    Object.keys(details).forEach(source => {
+      const d = details[source];
+      inner += subBlock(source, detailGrid([
+        ['Frequency', d.frequency], ['Monthly amount', fmtMoney(d.monthlyAmount)],
+      ]));
+    });
+    html += sectionBlock('Additional Income', inner);
+  }
+
+  if (Object.keys(re).length) {
+    let inner = detailGrid([['Owns investment properties', re.hasInvestmentProperties]]);
+    inner += subBlock('Existing home', detailGrid([
+      ['Estimated value', fmtMoney(reh.estimatedValue)], ['Lender', reh.lender],
+      ['Amount owing', fmtMoney(reh.amountOwing)], ['Original loan amount', fmtMoney(reh.originalLoanAmount)],
+      ['Interest rate', reh.interestRateKnown === 'Yes' ? (reh.interestRate ? reh.interestRate + '%' : undefined) : 'Unknown'],
+      ['Fixed rate', reh.isFixed], ['Monthly repayment', fmtMoney(reh.monthlyRepayment)],
+      ['Is refinance', reh.isRefinance],
+    ]));
+    (re.investmentProperties || []).forEach((prop, i) => {
+      inner += subBlock(`Investment property ${i + 1}`, detailGrid([
+        ['Address', prop.address], ['Estimated value', fmtMoney(prop.estimatedValue)],
+        ['Rent income', fmtMoney(prop.rentIncome)], ['Is financed', prop.isFinanced],
+        ['Lender', prop.lender], ['Amount owing', fmtMoney(prop.amountOwing)],
+        ['Original loan amount', fmtMoney(prop.originalLoanAmount)],
+        ['Interest rate', prop.interestRateKnown === 'Yes' ? (prop.interestRate ? prop.interestRate + '%' : undefined) : 'Unknown'],
+        ['Fixed rate', prop.isFixed], ['Monthly repayment', fmtMoney(prop.monthlyRepayment)],
+        ['Is refinance', prop.isRefinance],
+      ]));
+    });
+    html += sectionBlock('Real Estate Assets', inner);
+  }
+
+  if (Object.keys(assets).length) {
+    let inner = detailGrid([['Assets owned', assets.owned]]);
+    (assets.savingsAccounts || []).forEach((acc, i) => {
+      inner += subBlock(`Savings account ${i + 1}`, detailGrid([
+        ['Savings amount', fmtMoney(acc.savingsAmount)], ['Financial institution', acc.financialInstitution],
+      ]));
+    });
+    html += sectionBlock('Assets', inner);
+  }
+
+  if (Object.keys(liabilities).length) {
+    let inner = detailGrid([['Liability types', liabilities.types]]);
+    (liabilities.personalLoans || []).forEach((l, i) => {
+      inner += subBlock(`Personal loan ${i + 1}`, detailGrid([
+        ['Lender', l.lender], ['Monthly repayment', fmtMoney(l.monthlyRepayment)],
+        ['Amount owing', fmtMoney(l.amountOwing)], ['Original loan amount', fmtMoney(l.originalLoanAmount)],
+        ['Interest rate', l.interestRateKnown === 'Yes' ? (l.interestRate ? l.interestRate + '%' : undefined) : 'Unknown'],
+      ]));
+    });
+    (liabilities.creditCards || []).forEach((c, i) => {
+      inner += subBlock(`Credit card ${i + 1}`, detailGrid([
+        ['Lender', c.lender], ['Monthly repayment', fmtMoney(c.monthlyRepayment)],
+        ['Credit limit', fmtMoney(c.creditLimit)], ['Amount owing', fmtMoney(c.amountOwing)],
+        ['Interest rate', c.interestRateKnown === 'Yes' ? (c.interestRate ? c.interestRate + '%' : undefined) : 'Unknown'],
+      ]));
+    });
+    html += sectionBlock('Liabilities', inner);
+  }
+
+  return html;
+}
+
 async function openModal(id) {
   currentId = id;
   const res = await fetch(`/api/submissions/${id}`);
@@ -125,21 +281,9 @@ async function openModal(id) {
 
   document.getElementById('mName').textContent = s.fullName;
   document.getElementById('mEmail').textContent = s.email;
+  document.getElementById('pdfBtn').href = `/api/submissions/${s.id}/pdf`;
 
-  const fields = [
-    ['Phone', s.phone || '—'],
-    ['Date of birth', s.dob || '—'],
-    ['Employment status', s.employmentStatus || '—'],
-    ['Annual income', s.annualIncome ? '$' + Number(s.annualIncome).toLocaleString() : '—'],
-    ['Requested amount', s.loanAmount ? '$' + Number(s.loanAmount).toLocaleString() : '—'],
-    ['Purpose', s.loanPurpose || '—'],
-    ['Submitted', fmtDate(s.submittedAt)],
-    ['Last updated', fmtDate(s.updatedAt)],
-  ];
-
-  document.getElementById('detailGrid').innerHTML = fields.map(([k, v]) => `
-    <div><div class="k">${k}</div><div class="v">${v}</div></div>
-  `).join('') + (s.notes ? `<div style="grid-column:1/-1;"><div class="k">Notes</div><div class="v">${s.notes}</div></div>` : '');
+  document.getElementById('sections').innerHTML = renderSections(s);
 
   const fileKeys = Object.keys(s.files || {});
   const fileList = document.getElementById('fileList');
@@ -149,9 +293,11 @@ async function openModal(id) {
     fileList.innerHTML = fileKeys.map(k => {
       const f = s.files[k];
       const sizeKb = Math.round(f.size / 1024);
-      return `<a href="/api/submissions/${s.id}/files/${k}" target="_blank">
-        <span>${f.label}: ${f.originalName}</span><span>${sizeKb} KB</span>
-      </a>`;
+      return `<div class="doc-block">
+        <div class="doc-heading">${f.label}</div>
+        <div class="doc-meta">${f.originalName} · ${sizeKb} KB</div>
+        <a class="doc-download" href="/api/submissions/${s.id}/files/${k}" target="_blank">Download ↓</a>
+      </div>`;
     }).join('');
   }
 
