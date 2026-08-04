@@ -47,6 +47,14 @@ A self-hosted client onboarding tool: a client-facing intake form (a full financ
 - `pdf.js` generates the client-form PDF on demand (via `pdfkit`) — no data is pre-rendered or cached.
 - `migrate-data.js` is a one-time script used to move data from the old `data/submissions.json` file format into Postgres — you shouldn't need to run it again unless restoring from an old backup.
 
+## Abuse protection
+
+The intake form is public (no login), so it has a few defenses against spam/bot submissions and password guessing:
+
+- **Rate limiting**: an IP can submit at most 5 applications per hour (`submitLimiter` in `server.js`), and dashboard login attempts are capped at 20 per 15 minutes (`dashboardAuthLimiter`).
+- **Honeypot field**: the form has a hidden `company` field real clients never see or fill in. If it's filled, the submission is silently discarded (the client still sees a normal success message, so bots aren't tipped off).
+- **Duplicate detection**: if an email already has a submission with status New or In Review, a new submission from that email is rejected with a friendly message instead of creating another row. Once that submission is Approved or Rejected, the same email can submit again.
+
 ## Sharing the form with clients
 
 While `npm start` is running on your machine, the form only works on `localhost`. To let real clients submit from anywhere, deploy this app to a host (e.g. Render, Railway, Fly.io, a VPS) and share that public URL instead of `localhost:3000`.

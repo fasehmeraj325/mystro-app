@@ -240,6 +240,15 @@ button.primary:disabled {
 .msg.hidden { display: none; }
 .hidden { display: none !important; }
 
+.hp-field {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
 .subsection {
   font-size: 14px;
   font-weight: 600;

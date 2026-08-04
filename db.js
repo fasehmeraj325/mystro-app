@@ -68,6 +68,16 @@ async function getSubmission(id) {
   return rows[0] ? toSubmission(rows[0]) : null;
 }
 
+async function getPendingSubmissionByEmail(email) {
+  const { rows } = await pool.query(
+    `SELECT * FROM submissions
+     WHERE email = $1 AND status IN ('New', 'In Review')
+     ORDER BY submitted_at DESC LIMIT 1`,
+    [email]
+  );
+  return rows[0] ? toSubmission(rows[0]) : null;
+}
+
 async function insertSubmission(s) {
   await pool.query(
     `INSERT INTO submissions
@@ -105,6 +115,7 @@ module.exports = {
   initSchema,
   listSubmissions,
   getSubmission,
+  getPendingSubmissionByEmail,
   insertSubmission,
   updateSubmissionStatus,
   deleteSubmission,

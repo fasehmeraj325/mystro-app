@@ -2,6 +2,7 @@ require("dotenv").config();
 
 const express = require("express");
 const multer = require("multer");
+const rateLimit = require("express-rate-limit");
 const fs = require("fs");
 const path = require("path");
 const { randomUUID } = require("crypto");
@@ -79,6 +80,26 @@ function assignSubmissionId(req, res, next) {
   next();
 }
 
+// --- abuse protection -------------------------------------------------
+// Caps how many applications a single IP can submit per hour, so a script
+// (or an over-eager client) can't flood the dashboard with submissions.
+const submitLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many applications submitted from this network. Please try again later." },
+});
+
+// Slows down password-guessing against the dashboard login.
+const dashboardAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many attempts. Please try again later.",
+});
+
 // --- dashboard auth -------------------------------------------------
 // Protects the dashboard page and everything that lists/reveals submissions
 // or documents. The public intake form and /api/submit stay open so clients
@@ -117,8 +138,8 @@ app.use(express.json());
 
 // Dashboard page and its data must be authenticated before the static
 // file handler / API routes below can serve them.
-app.get("/dashboard.html", requireDashboardAuth);
-app.use("/api/submissions", requireDashboardAuth);
+app.get("/dashboard.html", dashboardAuthLimiter, requireDashboardAuth);
+app.use("/api/submissions", dashboardAuthLimiter, requireDashboardAuth);
 
 app.use(express.static(path.join(APP_DIR, "public")));
 
@@ -127,9 +148,19 @@ app.use(express.static(path.join(APP_DIR, "public")));
 // Create a new submission (client intake)
 app.post(
   "/api/submit",
+  submitLimiter,
   assignSubmissionId,
   upload.fields(FILE_FIELDS.map((f) => ({ name: f.name, maxCount: f.maxCount }))),
   async (req, res) => {
+    // Honeypot: a field named "company" is hidden from real clients via CSS,
+    // so only bots that auto-fill every input tend to populate it. Pretend
+    // to succeed rather than telling the bot what tripped it.
+    if (req.body.company) {
+      const dir = path.join(UPLOADS_DIR, req.submissionId);
+      if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+      return res.status(201).json({ ok: true, id: req.submissionId });
+    }
+
     let clientInfo;
     try {
       clientInfo = JSON.parse(req.body.clientInfo || "{}");
@@ -144,6 +175,15 @@ app.post(
 
     if (!fullName || !email) {
       return res.status(400).json({ error: "First name, surname, and email are required." });
+    }
+
+    const pending = await db.getPendingSubmissionByEmail(email);
+    if (pending) {
+      const dir = path.join(UPLOADS_DIR, req.submissionId);
+      if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+      return res.status(409).json({
+        error: "You already have an application in progress with this email address. We'll be in touch soon — no need to submit again.",
+      });
     }
 
     const files = {};
