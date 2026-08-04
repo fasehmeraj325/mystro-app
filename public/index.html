@@ -456,66 +456,39 @@
     <div class="grid2">
       <div class="field">
         <label>Valid Driver's Licence</label>
-        <label class="file-drop" for="driversLicence">
-          <input type="file" id="driversLicence" name="driversLicence" multiple />
-          <div class="fname" data-empty="Click to upload">Click to upload</div>
-        </label>
+        <div id="fg_driversLicence"></div>
       </div>
       <div class="field">
         <label>Valid Passport</label>
-        <label class="file-drop" for="passport">
-          <input type="file" id="passport" name="passport" multiple />
-          <div class="fname" data-empty="Click to upload">Click to upload</div>
-        </label>
+        <div id="fg_passport"></div>
       </div>
       <div class="field">
         <label>Payslips <span class="opt">(2 most recent, if PAYG)</span></label>
-        <label class="file-drop" for="payslips">
-          <input type="file" id="payslips" name="payslips" multiple />
-          <div class="fname" data-empty="Click to upload">Click to upload</div>
-        </label>
+        <div id="fg_payslips"></div>
       </div>
       <div class="field">
         <label>Income proof <span class="opt">(3-mo bank statement or FY income statement, if PAYG)</span></label>
-        <label class="file-drop" for="incomeProof">
-          <input type="file" id="incomeProof" name="incomeProof" multiple />
-          <div class="fname" data-empty="Click to upload">Click to upload</div>
-        </label>
+        <div id="fg_incomeProof"></div>
       </div>
       <div class="field">
         <label>Home loan statement(s) <span class="opt">(last 6 months, if mortgaged)</span></label>
-        <label class="file-drop" for="homeLoanStatements">
-          <input type="file" id="homeLoanStatements" name="homeLoanStatements" multiple />
-          <div class="fname" data-empty="Click to upload">Click to upload</div>
-        </label>
+        <div id="fg_homeLoanStatements"></div>
       </div>
       <div class="field">
         <label>Rental income statement(s) <span class="opt">(investment properties)</span></label>
-        <label class="file-drop" for="rentalIncomeStatements">
-          <input type="file" id="rentalIncomeStatements" name="rentalIncomeStatements" multiple />
-          <div class="fname" data-empty="Click to upload">Click to upload</div>
-        </label>
+        <div id="fg_rentalIncomeStatements"></div>
       </div>
       <div class="field">
         <label>Council Rates Notice <span class="opt">(+ payment proof, owned properties)</span></label>
-        <label class="file-drop" for="councilRatesNotices">
-          <input type="file" id="councilRatesNotices" name="councilRatesNotices" multiple />
-          <div class="fname" data-empty="Click to upload">Click to upload</div>
-        </label>
+        <div id="fg_councilRatesNotices"></div>
       </div>
       <div class="field">
         <label>Individual Tax Return <span class="opt">(FY25/FY26, if self-employed)</span></label>
-        <label class="file-drop" for="taxReturn">
-          <input type="file" id="taxReturn" name="taxReturn" multiple />
-          <div class="fname" data-empty="Click to upload">Click to upload</div>
-        </label>
+        <div id="fg_taxReturn"></div>
       </div>
       <div class="field">
         <label>Liability statement(s) <span class="opt">(latest 1 month, where applicable)</span></label>
-        <label class="file-drop" for="liabilityStatements">
-          <input type="file" id="liabilityStatements" name="liabilityStatements" multiple />
-          <div class="fname" data-empty="Click to upload">Click to upload</div>
-        </label>
+        <div id="fg_liabilityStatements"></div>
       </div>
     </div>
 
@@ -607,18 +580,75 @@
 </template>
 
 <script>
-document.querySelectorAll('.file-drop input[type=file]').forEach(input => {
-  input.addEventListener('change', () => {
-    const label = input.closest('.file-drop').querySelector('.fname');
-    if (!input.files.length) {
-      label.textContent = label.dataset.empty;
-    } else if (input.files.length === 1) {
-      label.textContent = input.files[0].name;
-    } else {
-      label.textContent = `${input.files.length} files selected`;
-    }
-  });
-});
+// --- incremental document upload slots --------------------------------
+// Each document field starts with one upload slot. As soon as a client
+// picks a file, a new empty slot appears below (up to maxCount) so they
+// can attach a second, third, etc. file without needing a multi-select
+// file picker. Slots beyond the first can be removed.
+function setupFileGroup(fieldName, maxCount, itemLabel) {
+  const container = document.getElementById('fg_' + fieldName);
+
+  function renumber() {
+    container.querySelectorAll('.file-slot').forEach((slot, i) => {
+      slot.querySelector('.slot-label').textContent = `${itemLabel} ${i + 1}`;
+    });
+  }
+
+  function addSlot() {
+    if (container.querySelectorAll('.file-slot').length >= maxCount) return;
+
+    const slot = document.createElement('div');
+    slot.className = 'file-slot';
+    slot.innerHTML = `
+      <div class="slot-label"></div>
+      <label class="file-drop">
+        <input type="file" name="${fieldName}" />
+        <div class="fname" data-empty="Click to upload">Click to upload</div>
+      </label>
+      <button type="button" class="remove-slot" title="Remove">&times;</button>
+    `;
+    container.appendChild(slot);
+    renumber();
+
+    const input = slot.querySelector('input[type=file]');
+    const fname = slot.querySelector('.fname');
+
+    input.addEventListener('change', () => {
+      if (input.files.length) {
+        fname.textContent = input.files[0].name;
+        if (slot === container.lastElementChild) addSlot();
+      } else {
+        fname.textContent = fname.dataset.empty;
+      }
+    });
+
+    slot.querySelector('.remove-slot').addEventListener('click', () => {
+      const slots = container.querySelectorAll('.file-slot');
+      if (slots.length <= 1) {
+        input.value = '';
+        fname.textContent = fname.dataset.empty;
+        return;
+      }
+      slot.remove();
+      renumber();
+    });
+  }
+
+  addSlot();
+  return { reset: () => { container.innerHTML = ''; addSlot(); } };
+}
+
+const fileGroups = {
+  driversLicence: setupFileGroup('driversLicence', 2, "Driver's Licence"),
+  passport: setupFileGroup('passport', 2, 'Passport'),
+  payslips: setupFileGroup('payslips', 4, 'Payslip'),
+  incomeProof: setupFileGroup('incomeProof', 6, 'Income document'),
+  homeLoanStatements: setupFileGroup('homeLoanStatements', 6, 'Home loan statement'),
+  rentalIncomeStatements: setupFileGroup('rentalIncomeStatements', 6, 'Rental statement'),
+  councilRatesNotices: setupFileGroup('councilRatesNotices', 6, 'Council rates notice'),
+  taxReturn: setupFileGroup('taxReturn', 4, 'Tax return'),
+  liabilityStatements: setupFileGroup('liabilityStatements', 10, 'Liability statement'),
+};
 
 // --- generic Yes/No show/hide -------------------------------------------
 function wireYesNoToggles(root) {
@@ -941,7 +971,7 @@ form.addEventListener('submit', async (e) => {
     msg.className = 'msg ok';
     msg.textContent = "Thanks — your application has been submitted. We'll be in touch shortly.";
     form.reset();
-    document.querySelectorAll('.file-drop .fname').forEach(el => el.textContent = el.dataset.empty);
+    Object.values(fileGroups).forEach(g => g.reset());
     document.querySelectorAll('.repeat-item').forEach(el => el.remove());
     document.getElementById('ai_sourceDetails').innerHTML = '';
     document.getElementById('assetDetails').innerHTML = '';

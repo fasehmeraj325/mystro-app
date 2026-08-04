@@ -170,6 +170,39 @@ input:focus, select:focus, textarea:focus {
   color: var(--muted);
 }
 
+.file-slot {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.file-slot .file-drop {
+  padding: 10px 34px 10px 12px;
+}
+
+.file-slot .slot-label {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  margin-bottom: 4px;
+}
+
+.file-slot .remove-slot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  z-index: 1;
+}
+
+.file-slot .remove-slot:hover { color: var(--bad); }
+
 button.primary {
   background: var(--brand);
   color: #fff;
@@ -330,6 +363,25 @@ tbody tr:hover { background: #fafbff; }
   grid-template-columns: repeat(4, 1fr);
   gap: 14px;
   margin-bottom: 24px;
+}
+
+.search-input {
+  width: 100%;
+  max-width: 320px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #fff;
+  color: var(--ink);
+  margin-bottom: 16px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(58,58,255,0.12);
 }
 
 .stat {

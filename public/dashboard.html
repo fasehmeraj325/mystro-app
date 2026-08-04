@@ -22,6 +22,8 @@
 
   <div class="stat-row" id="stats"></div>
 
+  <input type="text" id="searchInput" class="search-input" placeholder="Search by client name..." />
+
   <div class="card" style="padding:0; overflow:hidden;">
     <table id="table">
       <thead>
@@ -37,6 +39,7 @@
       <tbody id="tbody"></tbody>
     </table>
     <div id="empty" class="empty hidden">No submissions yet. Share your intake form link with clients to get started.</div>
+    <div id="noMatches" class="empty hidden">No clients match "<span id="noMatchesQuery"></span>".</div>
   </div>
 </div>
 
@@ -87,18 +90,32 @@ function badgeClass(status) {
   return status.replace(' ', '-');
 }
 
+let allSubmissions = [];
+
 async function loadTable() {
   const res = await fetch('/api/submissions');
-  const list = await res.json();
+  allSubmissions = await res.json();
+  renderStats(allSubmissions);
+  applySearch();
+}
 
+function renderTable(list) {
   const tbody = document.getElementById('tbody');
   const empty = document.getElementById('empty');
+  const noMatches = document.getElementById('noMatches');
+  const query = document.getElementById('searchInput').value.trim();
   tbody.innerHTML = '';
 
-  if (!list.length) {
+  if (!allSubmissions.length) {
     empty.classList.remove('hidden');
+    noMatches.classList.add('hidden');
+  } else if (!list.length) {
+    empty.classList.add('hidden');
+    noMatches.classList.remove('hidden');
+    document.getElementById('noMatchesQuery').textContent = query;
   } else {
     empty.classList.add('hidden');
+    noMatches.classList.add('hidden');
     for (const s of list) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
@@ -113,9 +130,17 @@ async function loadTable() {
       tbody.appendChild(tr);
     }
   }
-
-  renderStats(list);
 }
+
+function applySearch() {
+  const query = document.getElementById('searchInput').value.trim().toLowerCase();
+  const filtered = query
+    ? allSubmissions.filter(s => (s.fullName || '').toLowerCase().includes(query))
+    : allSubmissions;
+  renderTable(filtered);
+}
+
+document.getElementById('searchInput').addEventListener('input', applySearch);
 
 function renderStats(list) {
   const counts = { New: 0, 'In Review': 0, Approved: 0, Rejected: 0 };
