@@ -22,6 +22,16 @@
 
   <div class="stat-row" id="stats"></div>
 
+  <div class="card invite-card">
+    <div class="section-title" style="margin-top:0;">Send application link to a client</div>
+    <form id="inviteForm" class="invite-form">
+      <input type="email" id="inviteEmail" placeholder="Client email" required />
+      <input type="text" id="inviteName" placeholder="Client name (optional)" />
+      <button type="submit" class="primary" id="inviteBtn">Send</button>
+    </form>
+    <div id="inviteMsg" class="msg hidden"></div>
+  </div>
+
   <input type="text" id="searchInput" class="search-input" placeholder="Search by client name..." />
 
   <div class="card" style="padding:0; overflow:hidden;">
@@ -390,6 +400,40 @@ document.getElementById('closeModal').addEventListener('click', () => {
 });
 document.getElementById('overlay').addEventListener('click', (e) => {
   if (e.target.id === 'overlay') document.getElementById('overlay').classList.add('hidden');
+});
+
+const inviteForm = document.getElementById('inviteForm');
+const inviteBtn = document.getElementById('inviteBtn');
+const inviteMsg = document.getElementById('inviteMsg');
+
+inviteForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  inviteMsg.className = 'msg hidden';
+  inviteBtn.disabled = true;
+  inviteBtn.textContent = 'Sending...';
+
+  try {
+    const res = await fetch('/api/send-invite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: document.getElementById('inviteEmail').value,
+        name: document.getElementById('inviteName').value,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Something went wrong');
+
+    inviteMsg.className = 'msg ok';
+    inviteMsg.textContent = 'Application link sent.';
+    inviteForm.reset();
+  } catch (err) {
+    inviteMsg.className = 'msg err';
+    inviteMsg.textContent = err.message;
+  } finally {
+    inviteBtn.disabled = false;
+    inviteBtn.textContent = 'Send';
+  }
 });
 
 loadTable();

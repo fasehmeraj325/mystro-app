@@ -8,6 +8,7 @@ const path = require("path");
 const { randomUUID } = require("crypto");
 const db = require("./db");
 const { buildClientPdf } = require("./pdf");
+const { sendClientInvite } = require("./mail");
 
 const APP_DIR = __dirname;
 const DATA_DIR = path.join(APP_DIR, "data");
@@ -140,6 +141,7 @@ app.use(express.json());
 // file handler / API routes below can serve them.
 app.get("/dashboard.html", dashboardAuthLimiter, requireDashboardAuth);
 app.use("/api/submissions", dashboardAuthLimiter, requireDashboardAuth);
+app.use("/api/send-invite", dashboardAuthLimiter, requireDashboardAuth);
 
 app.use(express.static(path.join(APP_DIR, "public")));
 
@@ -218,6 +220,22 @@ app.post(
     res.status(201).json({ ok: true, id: submission.id });
   }
 );
+
+// Email a client the intake form link (admin-only)
+app.post("/api/send-invite", async (req, res) => {
+  const { email, name } = req.body || {};
+  if (!email || typeof email !== "string") {
+    return res.status(400).json({ error: "A client email address is required." });
+  }
+
+  try {
+    await sendClientInvite({ toEmail: email, toName: name });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Failed to send invite email:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // List submissions (summary, for dashboard table)
 app.get("/api/submissions", async (req, res) => {

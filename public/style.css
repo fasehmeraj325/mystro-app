@@ -374,6 +374,36 @@ tbody tr:hover { background: #fafbff; }
   margin-bottom: 24px;
 }
 
+.invite-card {
+  margin-bottom: 20px;
+}
+
+.invite-form {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.invite-form input {
+  flex: 1;
+  min-width: 200px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #fff;
+  color: var(--ink);
+}
+
+.invite-form input:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(58,58,255,0.12);
+}
+
+.invite-form button { flex-shrink: 0; }
+
 .search-input {
   width: 100%;
   max-width: 320px;

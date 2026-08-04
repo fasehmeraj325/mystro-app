@@ -22,9 +22,18 @@ A self-hosted client onboarding tool: a client-facing intake form (a full financ
    DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
    DASHBOARD_USER=admin
    DASHBOARD_PASSWORD=choose-a-strong-password
+
+   APP_URL=http://localhost:3000
+   BUSINESS_NAME=Your Business Name
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=465
+   SMTP_USER=you@gmail.com
+   SMTP_PASSWORD=your-16-character-app-password
    ```
 
    `DATABASE_URL` is your Postgres connection string. `DASHBOARD_USER`/`DASHBOARD_PASSWORD` are required — without them, anyone can view client submissions. `.env` is already in `.gitignore` — never commit it.
+
+   The `SMTP_*` / `APP_URL` / `BUSINESS_NAME` vars power the "Send application link to a client" box on the dashboard (see [Emailing clients](#emailing-clients) below) — leave them out if you don't need that yet.
 
 4. Start the app:
 
@@ -54,6 +63,27 @@ The intake form is public (no login), so it has a few defenses against spam/bot 
 - **Rate limiting**: an IP can submit at most 5 applications per hour (`submitLimiter` in `server.js`), and dashboard login attempts are capped at 20 per 15 minutes (`dashboardAuthLimiter`).
 - **Honeypot field**: the form has a hidden `company` field real clients never see or fill in. If it's filled, the submission is silently discarded (the client still sees a normal success message, so bots aren't tipped off).
 - **Duplicate detection**: if an email already has a submission with status New or In Review, a new submission from that email is rejected with a friendly message instead of creating another row. Once that submission is Approved or Rejected, the same email can submit again.
+
+## Emailing clients
+
+Instead of copy-pasting the form URL into an email every time, the dashboard has a **"Send application link to a client"** box at the top: enter their email (and optionally name) and click Send — the app emails them a link to `/`.
+
+This uses your own email account via SMTP (Gmail shown here; Outlook/other providers work the same way with different `SMTP_HOST`/`SMTP_PORT` values):
+
+1. Turn on 2-Step Verification on the Google account you want to send from (Google Account → Security).
+2. Go to [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords), create an app password (name it "Mystro Lite"), and copy the 16-character code it gives you.
+3. In `.env`, set:
+   ```
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=465
+   SMTP_USER=you@gmail.com
+   SMTP_PASSWORD=the-16-character-app-password   (not your normal Gmail password)
+   BUSINESS_NAME=Your Business Name
+   APP_URL=http://localhost:3000                 (update this to your real deployed URL once hosted)
+   ```
+4. Restart the app. The email will come from `you@gmail.com`, showing `BUSINESS_NAME` as the sender name, with a button/link pointing at `APP_URL`.
+
+If `SMTP_*` isn't set, clicking Send just shows an error on the dashboard — nothing breaks, that feature just isn't active yet.
 
 ## Sharing the form with clients
 
