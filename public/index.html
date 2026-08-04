@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Client Onboarding</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="dot"></span> Mystro Lite</div>
+  <nav>
+    <a href="index.html" class="active">Intake Form</a>
+    <a href="dashboard.html">Dashboard</a>
+  </nav>
+</div>
+
+<div class="wrap">
+  <h1>Client Onboarding</h1>
+  <p class="subtitle">Fill in your details and upload the required documents. We'll review your submission and get back to you.</p>
+
+  <div id="msg" class="msg hidden"></div>
+
+  <form id="intakeForm" class="card" enctype="multipart/form-data">
+
+    <div class="section-title">Contact details</div>
+    <div class="grid2">
+      <div class="field">
+        <label for="fullName">Full name</label>
+        <input type="text" id="fullName" name="fullName" required />
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required />
+      </div>
+      <div class="field">
+        <label for="phone">Phone <span class="opt">(optional)</span></label>
+        <input type="tel" id="phone" name="phone" />
+      </div>
+      <div class="field">
+        <label for="dob">Date of birth <span class="opt">(optional)</span></label>
+        <input type="date" id="dob" name="dob" />
+      </div>
+    </div>
+
+    <div class="section-title">Financial details</div>
+    <div class="grid2">
+      <div class="field">
+        <label for="employmentStatus">Employment status</label>
+        <select id="employmentStatus" name="employmentStatus">
+          <option value="">Select...</option>
+          <option>Employed full-time</option>
+          <option>Employed part-time</option>
+          <option>Self-employed</option>
+          <option>Unemployed</option>
+          <option>Retired</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="annualIncome">Annual income <span class="opt">(optional)</span></label>
+        <input type="number" id="annualIncome" name="annualIncome" min="0" placeholder="e.g. 75000" />
+      </div>
+      <div class="field">
+        <label for="loanAmount">Requested amount</label>
+        <input type="number" id="loanAmount" name="loanAmount" min="0" required placeholder="e.g. 25000" />
+      </div>
+      <div class="field">
+        <label for="loanPurpose">Purpose</label>
+        <input type="text" id="loanPurpose" name="loanPurpose" placeholder="e.g. Home renovation" />
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="notes">Anything else we should know? <span class="opt">(optional)</span></label>
+      <textarea id="notes" name="notes"></textarea>
+    </div>
+
+    <div class="section-title">Documents</div>
+    <div class="grid2">
+      <div class="field">
+        <label>Photo ID</label>
+        <label class="file-drop" for="idDocument">
+          <input type="file" id="idDocument" name="idDocument" />
+          <div class="fname" data-empty="Click to upload">Click to upload</div>
+          <div class="hint">Passport or driver's licence</div>
+        </label>
+      </div>
+      <div class="field">
+        <label>Proof of income</label>
+        <label class="file-drop" for="proofOfIncome">
+          <input type="file" id="proofOfIncome" name="proofOfIncome" />
+          <div class="fname" data-empty="Click to upload">Click to upload</div>
+          <div class="hint">Recent payslip or tax return</div>
+        </label>
+      </div>
+      <div class="field">
+        <label>Bank statement</label>
+        <label class="file-drop" for="bankStatement">
+          <input type="file" id="bankStatement" name="bankStatement" />
+          <div class="fname" data-empty="Click to upload">Click to upload</div>
+          <div class="hint">Last 3 months</div>
+        </label>
+      </div>
+      <div class="field">
+        <label>Proof of address</label>
+        <label class="file-drop" for="proofOfAddress">
+          <input type="file" id="proofOfAddress" name="proofOfAddress" />
+          <div class="fname" data-empty="Click to upload">Click to upload</div>
+          <div class="hint">Utility bill or lease agreement</div>
+        </label>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="primary" id="submitBtn">Submit application</button>
+    </div>
+  </form>
+</div>
+
+<script>
+document.querySelectorAll('.file-drop input[type=file]').forEach(input => {
+  input.addEventListener('change', () => {
+    const label = input.closest('.file-drop').querySelector('.fname');
+    label.textContent = input.files.length ? input.files[0].name : label.dataset.empty;
+  });
+});
+
+const form = document.getElementById('intakeForm');
+const msg = document.getElementById('msg');
+const submitBtn = document.getElementById('submitBtn');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  msg.className = 'msg hidden';
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Submitting...';
+
+  try {
+    const res = await fetch('/api/submit', {
+      method: 'POST',
+      body: new FormData(form),
+    });
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || 'Something went wrong');
+
+    msg.className = 'msg ok';
+    msg.textContent = "Thanks — your application has been submitted. We'll be in touch shortly.";
+    form.reset();
+    document.querySelectorAll('.file-drop .fname').forEach(el => el.textContent = el.dataset.empty);
+  } catch (err) {
+    msg.className = 'msg err';
+    msg.textContent = err.message;
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit application';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+});
+</script>
+
+</body>
+</html>

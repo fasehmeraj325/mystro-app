@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard — Mystro Lite</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="dot"></span> Mystro Lite</div>
+  <nav>
+    <a href="index.html">Intake Form</a>
+    <a href="dashboard.html" class="active">Dashboard</a>
+  </nav>
+</div>
+
+<div class="wrap wide">
+  <h1>Submissions</h1>
+  <p class="subtitle">Every client application, all in one place.</p>
+
+  <div class="stat-row" id="stats"></div>
+
+  <div class="card" style="padding:0; overflow:hidden;">
+    <table id="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Amount</th>
+          <th>Purpose</th>
+          <th>Docs</th>
+          <th>Status</th>
+          <th>Submitted</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div id="empty" class="empty hidden">No submissions yet. Share your intake form link with clients to get started.</div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h2 id="mName" style="margin:0 0 4px;font-size:19px;"></h2>
+        <div id="mEmail" style="color:var(--muted);font-size:13px;"></div>
+      </div>
+      <button class="modal-close" id="closeModal">&times;</button>
+    </div>
+
+    <div class="detail-grid" id="detailGrid"></div>
+
+    <div class="section-title" style="margin-top:0;">Documents</div>
+    <div class="file-list" id="fileList"></div>
+
+    <div class="section-title">Status</div>
+    <div class="status-row" id="statusRow"></div>
+  </div>
+</div>
+
+<script>
+let currentId = null;
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function badgeClass(status) {
+  return status.replace(' ', '-');
+}
+
+async function loadTable() {
+  const res = await fetch('/api/submissions');
+  const list = await res.json();
+
+  const tbody = document.getElementById('tbody');
+  const empty = document.getElementById('empty');
+  tbody.innerHTML = '';
+
+  if (!list.length) {
+    empty.classList.remove('hidden');
+  } else {
+    empty.classList.add('hidden');
+    for (const s of list) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${s.fullName}</td>
+        <td>${s.loanAmount ? '$' + Number(s.loanAmount).toLocaleString() : '—'}</td>
+        <td>${s.loanPurpose || '—'}</td>
+        <td>${s.fileCount} file${s.fileCount === 1 ? '' : 's'}</td>
+        <td><span class="badge ${badgeClass(s.status)}">${s.status}</span></td>
+        <td>${fmtDate(s.submittedAt)}</td>
+      `;
+      tr.addEventListener('click', () => openModal(s.id));
+      tbody.appendChild(tr);
+    }
+  }
+
+  renderStats(list);
+}
+
+function renderStats(list) {
+  const counts = { New: 0, 'In Review': 0, Approved: 0, Rejected: 0 };
+  for (const s of list) counts[s.status] = (counts[s.status] || 0) + 1;
+
+  const stats = [
+    { num: list.length, lbl: 'Total submissions' },
+    { num: counts['New'], lbl: 'New' },
+    { num: counts['In Review'], lbl: 'In review' },
+    { num: counts['Approved'], lbl: 'Approved' },
+  ];
+
+  document.getElementById('stats').innerHTML = stats.map(s => `
+    <div class="stat"><div class="num">${s.num}</div><div class="lbl">${s.lbl}</div></div>
+  `).join('');
+}
+
+async function openModal(id) {
+  currentId = id;
+  const res = await fetch(`/api/submissions/${id}`);
+  const s = await res.json();
+
+  document.getElementById('mName').textContent = s.fullName;
+  document.getElementById('mEmail').textContent = s.email;
+
+  const fields = [
+    ['Phone', s.phone || '—'],
+    ['Date of birth', s.dob || '—'],
+    ['Employment status', s.employmentStatus || '—'],
+    ['Annual income', s.annualIncome ? '$' + Number(s.annualIncome).toLocaleString() : '—'],
+    ['Requested amount', s.loanAmount ? '$' + Number(s.loanAmount).toLocaleString() : '—'],
+    ['Purpose', s.loanPurpose || '—'],
+    ['Submitted', fmtDate(s.submittedAt)],
+    ['Last updated', fmtDate(s.updatedAt)],
+  ];
+
+  document.getElementById('detailGrid').innerHTML = fields.map(([k, v]) => `
+    <div><div class="k">${k}</div><div class="v">${v}</div></div>
+  `).join('') + (s.notes ? `<div style="grid-column:1/-1;"><div class="k">Notes</div><div class="v">${s.notes}</div></div>` : '');
+
+  const fileKeys = Object.keys(s.files || {});
+  const fileList = document.getElementById('fileList');
+  if (!fileKeys.length) {
+    fileList.innerHTML = '<div class="none">No documents uploaded.</div>';
+  } else {
+    fileList.innerHTML = fileKeys.map(k => {
+      const f = s.files[k];
+      const sizeKb = Math.round(f.size / 1024);
+      return `<a href="/api/submissions/${s.id}/files/${k}" target="_blank">
+        <span>${f.label}: ${f.originalName}</span><span>${sizeKb} KB</span>
+      </a>`;
+    }).join('');
+  }
+
+  const statuses = ['New', 'In Review', 'Approved', 'Rejected'];
+  document.getElementById('statusRow').innerHTML = statuses.map(st => `
+    <button class="status-btn ${st === s.status ? 'active' : ''}" data-status="${st}">${st}</button>
+  `).join('');
+
+  document.querySelectorAll('.status-btn').forEach(btn => {
+    btn.addEventListener('click', () => setStatus(btn.dataset.status));
+  });
+
+  document.getElementById('overlay').classList.remove('hidden');
+}
+
+async function setStatus(status) {
+  await fetch(`/api/submissions/${currentId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+  openModal(currentId);
+  loadTable();
+}
+
+document.getElementById('closeModal').addEventListener('click', () => {
+  document.getElementById('overlay').classList.add('hidden');
+});
+document.getElementById('overlay').addEventListener('click', (e) => {
+  if (e.target.id === 'overlay') document.getElementById('overlay').classList.add('hidden');
+});
+
+loadTable();
+</script>
+
+</body>
+</html>
