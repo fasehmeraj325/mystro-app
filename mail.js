@@ -1,6 +1,7 @@
 const nodemailer = require("nodemailer");
 
 const BUSINESS_NAME = process.env.BUSINESS_NAME || "Mystro Lite";
+const SENDER_NAME = process.env.SENDER_NAME || "";
 const APP_URL = (process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
 
 function getTransporter() {
@@ -10,44 +11,83 @@ function getTransporter() {
       "Email is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, and SMTP_PASSWORD in .env."
     );
   }
+  const port = Number(SMTP_PORT);
+  const isImplicitTls = port === 465;
   return nodemailer.createTransport({
     host: SMTP_HOST,
-    port: Number(SMTP_PORT),
-    secure: Number(SMTP_PORT) === 465,
+    port,
+    secure: isImplicitTls,
+    // Port 587 (Office 365, and most providers other than Gmail's 465) uses
+    // STARTTLS instead of implicit TLS — require it rather than negotiating
+    // silently, so a misconfigured server fails loudly instead of sending
+    // over an unencrypted connection.
+    requireTLS: !isImplicitTls,
     auth: { user: SMTP_USER, pass: SMTP_PASSWORD },
   });
 }
 
 async function sendClientInvite({ toEmail, toName }) {
   const transporter = getTransporter();
-  const greeting = toName ? `Hi ${toName},` : "Hi,";
+  const greeting = toName ? `Hi ${toName},` : "Hi there,";
+  const signOff = SENDER_NAME ? `${SENDER_NAME}<br />${BUSINESS_NAME}` : BUSINESS_NAME;
+  const signOffText = SENDER_NAME ? `${SENDER_NAME}\n${BUSINESS_NAME}` : BUSINESS_NAME;
 
   const html = `
-    <div style="font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; color: #1a1d29;">
+    <div style="font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; max-width: 540px; margin: 0 auto; color: #1a1d29;">
       <p style="font-size:15px;">${greeting}</p>
-      <p style="font-size:15px; line-height:1.5;">
-        Please complete your application with ${BUSINESS_NAME} using the secure link below.
-        It takes about 5 minutes and lets you upload your documents directly.
+
+      <p style="font-size:15px; line-height:1.6;">
+        Thank you for choosing ${BUSINESS_NAME} for your application. To get started, please complete
+        our secure online client information form — it covers your personal details, employment and
+        income, assets, and liabilities, and lets you upload your supporting documents directly.
       </p>
+
+      <p style="font-size:15px; line-height:1.6;">
+        It takes about 10&ndash;15 minutes. You can save time by having your ID, recent payslips, and
+        bank statements on hand before you start.
+      </p>
+
       <p style="margin: 28px 0;">
-        <a href="${APP_URL}/" style="background:#3a3aff; color:#fff; text-decoration:none; padding:12px 22px; border-radius:8px; font-weight:600; font-size:15px; display:inline-block;">
+        <a href="${APP_URL}/" style="background:#3a3aff; color:#fff; text-decoration:none; padding:12px 24px; border-radius:8px; font-weight:600; font-size:15px; display:inline-block;">
           Start my application
         </a>
       </p>
-      <p style="font-size:13px; color:#6b7080;">
-        If the button doesn't work, copy and paste this link into your browser:<br />
+
+      <p style="font-size:13px; color:#6b7080; line-height:1.5;">
+        If the button above doesn't work, copy and paste this link into your browser:<br />
         <a href="${APP_URL}/" style="color:#3a3aff;">${APP_URL}/</a>
       </p>
-      <p style="font-size:15px; margin-top:28px;">Thanks,<br />${BUSINESS_NAME}</p>
+
+      <p style="font-size:15px; line-height:1.6;">
+        This link is unique to your application and your information is submitted securely. If you have
+        any questions along the way, just reply to this email and we'll be happy to help.
+      </p>
+
+      <p style="font-size:15px; margin-top:28px;">
+        Kind regards,<br />${signOff}
+      </p>
     </div>
   `;
 
-  const text = `${greeting}\n\nPlease complete your application with ${BUSINESS_NAME} using the link below. It takes about 5 minutes.\n\n${APP_URL}/\n\nThanks,\n${BUSINESS_NAME}`;
+  const text = [
+    greeting,
+    "",
+    `Thank you for choosing ${BUSINESS_NAME} for your application. To get started, please complete our secure online client information form — it covers your personal details, employment and income, assets, and liabilities, and lets you upload your supporting documents directly.`,
+    "",
+    "It takes about 10-15 minutes. You can save time by having your ID, recent payslips, and bank statements on hand before you start.",
+    "",
+    `${APP_URL}/`,
+    "",
+    "If you have any questions along the way, just reply to this email and we'll be happy to help.",
+    "",
+    "Kind regards,",
+    signOffText,
+  ].join("\n");
 
   await transporter.sendMail({
     from: `"${BUSINESS_NAME}" <${process.env.SMTP_USER}>`,
     to: toEmail,
-    subject: `Complete your application — ${BUSINESS_NAME}`,
+    subject: `Your ${BUSINESS_NAME} application — complete your details online`,
     text,
     html,
   });
