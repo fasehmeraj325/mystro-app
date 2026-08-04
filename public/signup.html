@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Create your account — Mystro Lite</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="dot"></span> Mystro Lite</div>
+</div>
+
+<div class="wrap" style="max-width:420px;">
+  <h1>Create your account</h1>
+  <p class="subtitle">Set up your company's own client onboarding dashboard.</p>
+
+  <div id="msg" class="msg hidden"></div>
+
+  <form id="signupForm" class="card">
+    <div class="field">
+      <label for="companyName">Company name</label>
+      <input type="text" id="companyName" required />
+    </div>
+    <div class="field">
+      <label for="email">Work email</label>
+      <input type="email" id="email" required autocomplete="username" />
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" required minlength="8" autocomplete="new-password" />
+      <div class="hint" style="margin-top:6px;">At least 8 characters.</div>
+    </div>
+    <div class="actions">
+      <button type="submit" class="primary" id="signupBtn">Create account</button>
+    </div>
+  </form>
+
+  <p style="text-align:center; font-size:14px; color:var(--muted); margin-top:20px;">
+    Already have an account? <a href="login.html" style="color:var(--brand);">Log in</a>
+  </p>
+</div>
+
+<script>
+const form = document.getElementById('signupForm');
+const msg = document.getElementById('msg');
+const btn = document.getElementById('signupBtn');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  msg.className = 'msg hidden';
+  btn.disabled = true;
+  btn.textContent = 'Creating account...';
+
+  try {
+    const email = document.getElementById('email').value;
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        companyName: document.getElementById('companyName').value,
+        email,
+        password: document.getElementById('password').value,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Something went wrong');
+
+    window.location.href = `verify.html?email=${encodeURIComponent(email)}`;
+  } catch (err) {
+    msg.className = 'msg err';
+    msg.textContent = err.message;
+    btn.disabled = false;
+    btn.textContent = 'Create account';
+  }
+});
+</script>
+
+</body>
+</html>

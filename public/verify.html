@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Verify your email — Mystro Lite</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="dot"></span> Mystro Lite</div>
+</div>
+
+<div class="wrap" style="max-width:420px;">
+  <h1>Verify your email</h1>
+  <p class="subtitle">We've sent a 6-digit code to your email address. Enter it below.</p>
+
+  <div id="msg" class="msg hidden"></div>
+
+  <form id="verifyForm" class="card">
+    <div class="field">
+      <label for="email">Email</label>
+      <input type="email" id="email" required />
+    </div>
+    <div class="field">
+      <label for="code">Verification code</label>
+      <input type="text" id="code" inputmode="numeric" maxlength="6" required placeholder="123456" />
+    </div>
+    <div class="actions">
+      <button type="submit" class="primary" id="verifyBtn">Verify</button>
+    </div>
+  </form>
+
+  <p style="text-align:center; font-size:14px; color:var(--muted); margin-top:20px;">
+    Didn't get a code? <a href="#" id="resendLink" style="color:var(--brand);">Resend it</a>
+  </p>
+</div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const emailField = document.getElementById('email');
+if (params.get('email')) emailField.value = params.get('email');
+
+const form = document.getElementById('verifyForm');
+const msg = document.getElementById('msg');
+const btn = document.getElementById('verifyBtn');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  msg.className = 'msg hidden';
+  btn.disabled = true;
+  btn.textContent = 'Verifying...';
+
+  try {
+    const res = await fetch('/api/auth/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: emailField.value,
+        code: document.getElementById('code').value,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Something went wrong');
+
+    window.location.href = 'dashboard.html';
+  } catch (err) {
+    msg.className = 'msg err';
+    msg.textContent = err.message;
+    btn.disabled = false;
+    btn.textContent = 'Verify';
+  }
+});
+
+document.getElementById('resendLink').addEventListener('click', async (e) => {
+  e.preventDefault();
+  msg.className = 'msg hidden';
+  try {
+    const res = await fetch('/api/auth/resend-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: emailField.value }),
+    });
+    if (!res.ok) throw new Error('Something went wrong');
+    msg.className = 'msg ok';
+    msg.textContent = 'A new code has been sent, if that email has a pending account.';
+  } catch (err) {
+    msg.className = 'msg err';
+    msg.textContent = err.message;
+  }
+});
+</script>
+
+</body>
+</html>

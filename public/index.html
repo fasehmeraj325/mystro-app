@@ -4,19 +4,22 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Client Onboarding</title>
-<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="/style.css" />
 </head>
 <body>
 
 <div class="topbar">
-  <div class="brand"><span class="dot"></span> Mystro Lite</div>
-  <nav>
-    <a href="index.html" class="active">Intake Form</a>
-  </nav>
+  <div class="brand"><span class="dot"></span> <span id="brandName">Mystro Lite</span></div>
 </div>
 
 <div class="wrap">
-  <h1>Client Information</h1>
+  <div id="notFound" class="hidden">
+    <h1>Link not found</h1>
+    <p class="subtitle">This application link isn't valid or is no longer active. Please contact the company that sent it to you.</p>
+  </div>
+
+  <div id="formWrap">
+  <h1 id="formTitle">Client Information</h1>
   <p class="subtitle">Fill in your details and upload the required documents. We'll review your submission and get back to you.</p>
 
   <div id="msg" class="msg hidden"></div>
@@ -501,6 +504,7 @@
       <button type="submit" class="primary" id="submitBtn">Submit application</button>
     </div>
   </form>
+  </div>
 </div>
 
 <template id="tpl-investment">
@@ -585,6 +589,32 @@
 </template>
 
 <script>
+// --- resolve which company this application link belongs to ---------------
+const COMPANY_SLUG = (() => {
+  const match = window.location.pathname.match(/^\/apply\/([^/]+)/);
+  return match ? match[1] : null;
+})();
+
+async function resolveCompany() {
+  if (!COMPANY_SLUG) {
+    document.getElementById('formWrap').classList.add('hidden');
+    document.getElementById('notFound').classList.remove('hidden');
+    return;
+  }
+  try {
+    const res = await fetch(`/api/public/companies/${encodeURIComponent(COMPANY_SLUG)}`);
+    if (!res.ok) throw new Error('not found');
+    const company = await res.json();
+    document.getElementById('brandName').textContent = company.businessName || company.name;
+    document.getElementById('formTitle').textContent = `${company.businessName || company.name} — Client Information`;
+    document.title = `${company.businessName || company.name} — Client Onboarding`;
+  } catch (e) {
+    document.getElementById('formWrap').classList.add('hidden');
+    document.getElementById('notFound').classList.remove('hidden');
+  }
+}
+resolveCompany();
+
 // --- incremental document upload slots --------------------------------
 // Each document field starts with one upload slot. As soon as a client
 // picks a file, a new empty slot appears below (up to maxCount) so they
@@ -965,7 +995,7 @@ form.addEventListener('submit', async (e) => {
     const fd = new FormData(form);
     fd.append('clientInfo', JSON.stringify(buildClientInfo()));
 
-    const res = await fetch('/api/submit', {
+    const res = await fetch(`/api/public/${encodeURIComponent(COMPANY_SLUG)}/submit`, {
       method: 'POST',
       body: fd,
     });

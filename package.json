@@ -7,9 +7,13 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "connect-pg-simple": "^10.0.0",
+    "disposable-email-domains": "^1.0.62",
     "dotenv": "^17.4.2",
     "express": "^4.19.2",
     "express-rate-limit": "^8.6.1",
+    "express-session": "^1.19.0",
     "multer": "^2.0.0",
     "nodemailer": "^9.0.3",
     "pdfkit": "^0.19.1",

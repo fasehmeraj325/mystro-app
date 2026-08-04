@@ -3,16 +3,22 @@ require("dotenv").config();
 const express = require("express");
 const multer = require("multer");
 const rateLimit = require("express-rate-limit");
+const session = require("express-session");
+const PgSession = require("connect-pg-simple")(session);
+const bcrypt = require("bcrypt");
+const dns = require("dns");
+const disposableDomains = require("disposable-email-domains");
 const fs = require("fs");
 const path = require("path");
-const { randomUUID } = require("crypto");
+const { randomUUID, randomInt } = require("crypto");
 const db = require("./db");
 const { buildClientPdf } = require("./pdf");
-const { sendClientInvite } = require("./mail");
+const { sendClientInvite, sendVerificationCode, APP_URL } = require("./mail");
 
 const APP_DIR = __dirname;
 const DATA_DIR = path.join(APP_DIR, "data");
 const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
+const DISPOSABLE_DOMAINS = new Set(disposableDomains);
 
 // --- bootstrap storage -------------------------------------------------
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -83,7 +89,7 @@ function assignSubmissionId(req, res, next) {
 
 // --- abuse protection -------------------------------------------------
 // Caps how many applications a single IP can submit per hour, so a script
-// (or an over-eager client) can't flood the dashboard with submissions.
+// (or an over-eager client) can't flood a company's dashboard with submissions.
 const submitLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   limit: 5,
@@ -92,68 +98,321 @@ const submitLimiter = rateLimit({
   message: { error: "Too many applications submitted from this network. Please try again later." },
 });
 
-// Slows down password-guessing against the dashboard login.
-const dashboardAuthLimiter = rateLimit({
+// Slows down password-guessing on the actual login endpoint specifically —
+// not the whole authenticated API surface, since a real admin's normal
+// dashboard use (loading submissions, opening records, updating statuses)
+// can easily exceed a tight login-guessing limit within 15 minutes.
+const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  message: "Too many attempts. Please try again later.",
+  message: { error: "Too many attempts. Please try again later." },
 });
 
-// --- dashboard auth -------------------------------------------------
-// Protects the dashboard page and everything that lists/reveals submissions
-// or documents. The public intake form and /api/submit stay open so clients
-// can apply without a login.
-const DASHBOARD_USER = process.env.DASHBOARD_USER || "admin";
-const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD || "";
+// General ceiling on the already-authenticated dashboard API surface — a
+// basic DoS/abuse guard, not a brute-force guard (that's loginLimiter's job).
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please slow down and try again shortly." },
+});
 
-if (!DASHBOARD_PASSWORD) {
-  console.warn(
-    "WARNING: DASHBOARD_PASSWORD is not set. Set DASHBOARD_USER and DASHBOARD_PASSWORD " +
-      "environment variables before deploying, or the dashboard has no real password."
-  );
+const signupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many signup attempts from this network. Please try again later." },
+});
+
+const verifyLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts. Please try again later." },
+});
+
+// --- dashboard auth -----------------------------------------------------
+// Every company logs in via session now (see /api/auth/login below).
+
+function requireCompanyAuthApi(req, res, next) {
+  if (req.session && req.session.companyId) {
+    req.companyId = req.session.companyId;
+    return next();
+  }
+  return res.status(401).json({ error: "Authentication required." });
 }
 
-function requireDashboardAuth(req, res, next) {
-  const header = req.headers.authorization || "";
-  const [scheme, encoded] = header.split(" ");
-
-  if (scheme === "Basic" && encoded) {
-    const decoded = Buffer.from(encoded, "base64").toString("utf-8");
-    const sepIndex = decoded.indexOf(":");
-    const user = decoded.slice(0, sepIndex);
-    const pass = decoded.slice(sepIndex + 1);
-
-    if (user === DASHBOARD_USER && pass === DASHBOARD_PASSWORD && DASHBOARD_PASSWORD) {
-      return next();
-    }
+function requireCompanyAuthPage(req, res, next) {
+  if (req.session && req.session.companyId) {
+    req.companyId = req.session.companyId;
+    return next();
   }
-
-  res.set("WWW-Authenticate", 'Basic realm="Mystro Dashboard"');
-  return res.status(401).send("Authentication required.");
+  return res.redirect("/login.html");
 }
 
 const app = express();
 app.use(express.json());
+app.use(
+  session({
+    store: new PgSession({ pool: db.pool, tableName: "session" }),
+    secret: process.env.SESSION_SECRET || "dev-only-insecure-secret-change-me",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    },
+  })
+);
 
-// Dashboard page and its data must be authenticated before the static
-// file handler / API routes below can serve them.
-app.get("/dashboard.html", dashboardAuthLimiter, requireDashboardAuth);
-app.use("/api/submissions", dashboardAuthLimiter, requireDashboardAuth);
-app.use("/api/send-invite", dashboardAuthLimiter, requireDashboardAuth);
+if (!process.env.SESSION_SECRET) {
+  console.warn("WARNING: SESSION_SECRET is not set — using an insecure default. Set it before deploying.");
+}
+
+// The dashboard page and everything under /api/submissions & /api/send-invite
+// require a logged-in company. The public intake form and its submit
+// endpoint stay open — clients apply
+// without an account.
+app.get("/dashboard.html", apiLimiter, requireCompanyAuthPage);
+app.use("/api/submissions", apiLimiter, requireCompanyAuthApi);
+app.use("/api/send-invite", apiLimiter, requireCompanyAuthApi);
+
+// Serve the intake form template at /apply/:slug (same physical file as
+// public/index.html — an inline script reads the slug from the URL).
+app.get("/apply/:slug", (req, res) => {
+  res.sendFile(path.join(APP_DIR, "public", "index.html"));
+});
+
+// No bare "/" landing page yet — send visitors to log in.
+app.get("/", (req, res) => res.redirect("/login.html"));
 
 app.use(express.static(path.join(APP_DIR, "public")));
 
+// --- auth: signup / verify / login / logout -----------------------------
+
+function slugify(name) {
+  return (
+    name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "company"
+  );
+}
+
+async function uniqueSlug(name) {
+  const base = slugify(name);
+  let slug = base;
+  let n = 2;
+  while (await db.slugExists(slug)) {
+    slug = `${base}-${n}`;
+    n++;
+  }
+  return slug;
+}
+
+async function isDisposableOrInvalidEmail(email) {
+  const domain = (email.split("@")[1] || "").toLowerCase();
+  if (!domain) return true;
+  if (DISPOSABLE_DOMAINS.has(domain)) return true;
+  try {
+    const records = await dns.promises.resolveMx(domain);
+    if (!records || records.length === 0) return true;
+  } catch (e) {
+    return true; // domain doesn't resolve at all
+  }
+  return false;
+}
+
+async function issueVerificationCode(userId, email) {
+  const code = String(randomInt(100000, 1000000));
+  const codeHash = await bcrypt.hash(code, 10);
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+  await db.createVerification({ id: randomUUID(), userId, codeHash, expiresAt });
+  await sendVerificationCode({ toEmail: email, code });
+}
+
+app.post("/api/auth/signup", signupLimiter, async (req, res) => {
+  const { companyName, email, password } = req.body || {};
+  if (!companyName || !email || !password) {
+    return res.status(400).json({ error: "Company name, email, and password are required." });
+  }
+  if (typeof password !== "string" || password.length < 8) {
+    return res.status(400).json({ error: "Password must be at least 8 characters." });
+  }
+
+  const normalizedEmail = String(email).trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return res.status(400).json({ error: "Enter a valid email address." });
+  }
+
+  const existing = await db.getUserByEmail(normalizedEmail);
+  if (existing) {
+    return res.status(409).json({ error: "An account with this email already exists." });
+  }
+
+  if (await isDisposableOrInvalidEmail(normalizedEmail)) {
+    return res.status(400).json({
+      error: "Please sign up with your real work email address — disposable or unreachable email domains aren't accepted.",
+    });
+  }
+
+  try {
+    const slug = await uniqueSlug(companyName);
+    const company = await db.createCompany({
+      id: randomUUID(),
+      name: companyName,
+      slug,
+      businessName: companyName,
+      senderName: "",
+    });
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const user = await db.createUser({
+      id: randomUUID(),
+      companyId: company.id,
+      email: normalizedEmail,
+      passwordHash,
+      role: "admin",
+      status: "pending",
+    });
+
+    // Account creation must succeed for the request to succeed; the email
+    // itself is best-effort so a misconfigured/down SMTP server doesn't
+    // orphan the account with no way to resend the code once fixed.
+    try {
+      await issueVerificationCode(user.id, normalizedEmail);
+    } catch (mailErr) {
+      console.error("Signup succeeded but the verification email failed to send:", mailErr.message);
+    }
+
+    res.status(201).json({ ok: true, email: normalizedEmail });
+  } catch (err) {
+    console.error("Signup failed:", err.message);
+    res.status(500).json({ error: "Something went wrong creating your account. Please try again." });
+  }
+});
+
+app.post("/api/auth/resend-code", verifyLimiter, async (req, res) => {
+  const email = String((req.body || {}).email || "").trim().toLowerCase();
+  const user = await db.getUserByEmail(email);
+  if (!user || user.status === "active") {
+    // Don't reveal whether the account exists.
+    return res.json({ ok: true });
+  }
+  try {
+    await issueVerificationCode(user.id, email);
+  } catch (err) {
+    console.error("Failed to resend verification code:", err.message);
+  }
+  res.json({ ok: true });
+});
+
+app.post("/api/auth/verify", verifyLimiter, async (req, res) => {
+  try {
+    const email = String((req.body || {}).email || "").trim().toLowerCase();
+    const code = String((req.body || {}).code || "").trim();
+
+    const user = await db.getUserByEmail(email);
+    if (!user) return res.status(400).json({ error: "Invalid email or code." });
+    if (user.status === "active") return res.status(400).json({ error: "This account is already verified." });
+
+    const verification = await db.getLatestVerification(user.id);
+    if (!verification) return res.status(400).json({ error: "No verification code found. Request a new one." });
+    if (verification.attempts >= 5) {
+      return res.status(429).json({ error: "Too many incorrect attempts. Request a new code." });
+    }
+    if (new Date(verification.expiresAt) < new Date()) {
+      return res.status(400).json({ error: "This code has expired. Request a new one." });
+    }
+
+    const match = await bcrypt.compare(code, verification.codeHash);
+    if (!match) {
+      await db.incrementVerificationAttempts(verification.id);
+      return res.status(400).json({ error: "Incorrect code." });
+    }
+
+    await db.activateUser(user.id);
+    req.session.userId = user.id;
+    req.session.companyId = user.companyId;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Verify failed:", err.message);
+    res.status(500).json({ error: "Something went wrong. Please try again." });
+  }
+});
+
+app.post("/api/auth/login", loginLimiter, async (req, res) => {
+  try {
+    const email = String((req.body || {}).email || "").trim().toLowerCase();
+    const password = String((req.body || {}).password || "");
+
+    const user = await db.getUserByEmail(email);
+    if (!user) return res.status(401).json({ error: "Incorrect email or password." });
+
+    const match = await bcrypt.compare(password, user.passwordHash);
+    if (!match) return res.status(401).json({ error: "Incorrect email or password." });
+
+    if (user.status !== "active") {
+      return res.status(403).json({ error: "Please verify your email first.", needsVerification: true, email: user.email });
+    }
+
+    req.session.userId = user.id;
+    req.session.companyId = user.companyId;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Login failed:", err.message);
+    res.status(500).json({ error: "Something went wrong. Please try again." });
+  }
+});
+
+app.post("/api/auth/logout", (req, res) => {
+  req.session.destroy(() => res.json({ ok: true }));
+});
+
+// Public: look up a company by its application-link slug.
+app.get("/api/public/companies/:slug", async (req, res) => {
+  const company = await db.getCompanyBySlug(req.params.slug);
+  if (!company || company.status !== "active") return res.status(404).json({ error: "Not found" });
+  res.json({ name: company.name, businessName: company.businessName });
+});
+
+// The logged-in company's own info (for showing its /apply/:slug link etc.)
+app.get("/api/company", requireCompanyAuthApi, async (req, res) => {
+  const company = await db.getCompanyById(req.companyId);
+  if (!company) return res.status(404).json({ error: "Not found" });
+  res.json({
+    name: company.name,
+    slug: company.slug,
+    businessName: company.businessName,
+    senderName: company.senderName,
+    applyUrl: `${APP_URL}/apply/${company.slug}`,
+  });
+});
+
 // --- API ---------------------------------------------------------------
 
-// Create a new submission (client intake)
+// Create a new submission (client intake) for a specific company.
 app.post(
-  "/api/submit",
+  "/api/public/:slug/submit",
   submitLimiter,
   assignSubmissionId,
   upload.fields(FILE_FIELDS.map((f) => ({ name: f.name, maxCount: f.maxCount }))),
   async (req, res) => {
+    const company = await db.getCompanyBySlug(req.params.slug);
+    if (!company || company.status !== "active") {
+      const dir = path.join(UPLOADS_DIR, req.submissionId);
+      if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+      return res.status(404).json({ error: "This application link is no longer valid." });
+    }
+
     // Honeypot: a field named "company" is hidden from real clients via CSS,
     // so only bots that auto-fill every input tend to populate it. Pretend
     // to succeed rather than telling the bot what tripped it.
@@ -179,7 +438,7 @@ app.post(
       return res.status(400).json({ error: "First name, surname, and email are required." });
     }
 
-    const pending = await db.getPendingSubmissionByEmail(email);
+    const pending = await db.getPendingSubmissionByEmail(company.id, email);
     if (pending) {
       const dir = path.join(UPLOADS_DIR, req.submissionId);
       if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
@@ -205,6 +464,7 @@ app.post(
     const now = new Date().toISOString();
     const submission = {
       id: req.submissionId,
+      companyId: company.id,
       fullName,
       email,
       phone,
@@ -228,8 +488,17 @@ app.post("/api/send-invite", async (req, res) => {
     return res.status(400).json({ error: "A client email address is required." });
   }
 
+  const company = await db.getCompanyById(req.companyId);
+  if (!company) return res.status(404).json({ error: "Company not found." });
+
   try {
-    await sendClientInvite({ toEmail: email, toName: name });
+    await sendClientInvite({
+      toEmail: email,
+      toName: name,
+      businessName: company.businessName || company.name,
+      senderName: company.senderName,
+      applyUrl: `${APP_URL}/apply/${company.slug}`,
+    });
     res.json({ ok: true });
   } catch (err) {
     console.error("Failed to send invite email:", err.message);
@@ -239,7 +508,7 @@ app.post("/api/send-invite", async (req, res) => {
 
 // List submissions (summary, for dashboard table)
 app.get("/api/submissions", async (req, res) => {
-  const list = await db.listSubmissions();
+  const list = await db.listSubmissions(req.companyId);
   res.json(
     list.map((s) => ({
       id: s.id,
@@ -260,7 +529,7 @@ app.get("/api/submissions", async (req, res) => {
 
 // Full detail for one submission
 app.get("/api/submissions/:id", async (req, res) => {
-  const submission = await db.getSubmission(req.params.id);
+  const submission = await db.getSubmission(req.companyId, req.params.id);
   if (!submission) return res.status(404).json({ error: "Not found" });
   res.json(submission);
 });
@@ -269,19 +538,19 @@ app.get("/api/submissions/:id", async (req, res) => {
 app.patch("/api/submissions/:id", async (req, res) => {
   const allowed = ["New", "In Review", "Approved", "Rejected"];
   if (!req.body.status || !allowed.includes(req.body.status)) {
-    const submission = await db.getSubmission(req.params.id);
+    const submission = await db.getSubmission(req.companyId, req.params.id);
     if (!submission) return res.status(404).json({ error: "Not found" });
     return res.json(submission);
   }
 
-  const submission = await db.updateSubmissionStatus(req.params.id, req.body.status);
+  const submission = await db.updateSubmissionStatus(req.companyId, req.params.id, req.body.status);
   if (!submission) return res.status(404).json({ error: "Not found" });
   res.json(submission);
 });
 
 // Delete a submission and its files
 app.delete("/api/submissions/:id", async (req, res) => {
-  const deleted = await db.deleteSubmission(req.params.id);
+  const deleted = await db.deleteSubmission(req.companyId, req.params.id);
   if (!deleted) return res.status(404).json({ error: "Not found" });
 
   const dir = path.join(UPLOADS_DIR, req.params.id);
@@ -292,7 +561,7 @@ app.delete("/api/submissions/:id", async (req, res) => {
 
 // Download the full client information form as a PDF
 app.get("/api/submissions/:id/pdf", async (req, res) => {
-  const submission = await db.getSubmission(req.params.id);
+  const submission = await db.getSubmission(req.companyId, req.params.id);
   if (!submission) return res.status(404).json({ error: "Not found" });
   buildClientPdf(res, submission);
 });
@@ -301,7 +570,7 @@ app.get("/api/submissions/:id/pdf", async (req, res) => {
 // has multiple uploads (older submissions stored a single object per field
 // instead of an array, so both shapes are handled here).
 app.get("/api/submissions/:id/files/:field/:index", async (req, res) => {
-  const submission = await db.getSubmission(req.params.id);
+  const submission = await db.getSubmission(req.companyId, req.params.id);
   if (!submission) return res.status(404).json({ error: "Not found" });
 
   const entry = submission.files && submission.files[req.params.field];
@@ -321,7 +590,7 @@ db.initSchema()
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Mystro Lite running at http://localhost:${PORT}`);
-      console.log(`Client intake form: http://localhost:${PORT}/`);
+      console.log(`Sign up / log in:   http://localhost:${PORT}/login.html`);
       console.log(`Dashboard:          http://localhost:${PORT}/dashboard.html`);
     });
   })

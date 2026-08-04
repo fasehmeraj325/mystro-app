@@ -4,15 +4,15 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Dashboard — Mystro Lite</title>
-<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="/style.css" />
 </head>
 <body>
 
 <div class="topbar">
   <div class="brand"><span class="dot"></span> Mystro Lite</div>
   <nav>
-    <a href="index.html">Intake Form</a>
     <a href="dashboard.html" class="active">Dashboard</a>
+    <a href="#" id="logoutLink">Log out</a>
   </nav>
 </div>
 
@@ -30,6 +30,10 @@
       <button type="submit" class="primary" id="inviteBtn">Send</button>
     </form>
     <div id="inviteMsg" class="msg hidden"></div>
+    <div style="margin-top:16px; font-size:13px; color:var(--muted);">
+      Or share your link directly: <a id="applyLink" href="#" target="_blank" style="color:var(--brand);"></a>
+      <button type="button" id="copyLinkBtn" class="secondary" style="margin-left:8px; padding:4px 10px; font-size:12px;">Copy</button>
+    </div>
   </div>
 
   <input type="text" id="searchInput" class="search-input" placeholder="Search by client name..." />
@@ -436,6 +440,32 @@ inviteForm.addEventListener('submit', async (e) => {
   }
 });
 
+document.getElementById('logoutLink').addEventListener('click', async (e) => {
+  e.preventDefault();
+  await fetch('/api/auth/logout', { method: 'POST' });
+  window.location.href = 'login.html';
+});
+
+async function loadCompanyLink() {
+  const res = await fetch('/api/company');
+  if (!res.ok) return;
+  const company = await res.json();
+  const linkEl = document.getElementById('applyLink');
+  linkEl.href = company.applyUrl;
+  linkEl.textContent = company.applyUrl;
+}
+
+document.getElementById('copyLinkBtn').addEventListener('click', () => {
+  const link = document.getElementById('applyLink').href;
+  navigator.clipboard.writeText(link).then(() => {
+    const btn = document.getElementById('copyLinkBtn');
+    const original = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  });
+});
+
+loadCompanyLink();
 loadTable();
 </script>
 

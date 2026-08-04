@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Log in — Mystro Lite</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="dot"></span> Mystro Lite</div>
+</div>
+
+<div class="wrap" style="max-width:420px;">
+  <h1>Log in</h1>
+  <p class="subtitle">Access your company's dashboard.</p>
+
+  <div id="msg" class="msg hidden"></div>
+
+  <form id="loginForm" class="card">
+    <div class="field">
+      <label for="email">Email</label>
+      <input type="email" id="email" required autocomplete="username" />
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" required autocomplete="current-password" />
+    </div>
+    <div class="actions">
+      <button type="submit" class="primary" id="loginBtn">Log in</button>
+    </div>
+  </form>
+
+  <p style="text-align:center; font-size:14px; color:var(--muted); margin-top:20px;">
+    No account yet? <a href="signup.html" style="color:var(--brand);">Create one</a>
+  </p>
+</div>
+
+<script>
+const form = document.getElementById('loginForm');
+const msg = document.getElementById('msg');
+const btn = document.getElementById('loginBtn');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  msg.className = 'msg hidden';
+  btn.disabled = true;
+  btn.textContent = 'Logging in...';
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: document.getElementById('email').value,
+        password: document.getElementById('password').value,
+      }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      if (data.needsVerification) {
+        window.location.href = `verify.html?email=${encodeURIComponent(data.email)}`;
+        return;
+      }
+      throw new Error(data.error || 'Something went wrong');
+    }
+
+    window.location.href = 'dashboard.html';
+  } catch (err) {
+    msg.className = 'msg err';
+    msg.textContent = err.message;
+    btn.disabled = false;
+    btn.textContent = 'Log in';
+  }
+});
+</script>
+
+</body>
+</html>

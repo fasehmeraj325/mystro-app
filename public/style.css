@@ -166,8 +166,9 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
 }
 
-.file-drop .hint {
+.hint {
   color: var(--muted);
+  font-size: 13px;
 }
 
 .file-slot {
