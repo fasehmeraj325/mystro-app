@@ -288,19 +288,6 @@ function buildClientPdf(res, submission) {
     if (oe.otherDescription) row(doc, "Other commitment details", oe.otherDescription);
   }
 
-  const fileFields = submission.files || {};
-  const fileKeys = Object.keys(fileFields);
-  if (fileKeys.length) {
-    sectionHeading(doc, "Documents Uploaded");
-    fileKeys.forEach((k) => {
-      const entry = fileFields[k];
-      const list = Array.isArray(entry) ? entry : entry ? [entry] : [];
-      list.forEach((f, i) => {
-        row(doc, list.length > 1 ? `${f.label} (${i + 1})` : f.label, f.originalName);
-      });
-    });
-  }
-
   doc.end();
 }
 
