@@ -17,11 +17,43 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 // --- file upload config -------------------------------------------------
+// Each field accepts up to `maxCount` files; applicability notes (PAYG,
+// self-employed, mortgaged, etc.) are shown to the client but not enforced
+// here, since not every client needs every document.
 const FILE_FIELDS = [
-  { name: "idDocument", label: "Photo ID" },
-  { name: "proofOfIncome", label: "Proof of Income" },
-  { name: "bankStatement", label: "Bank Statement" },
-  { name: "proofOfAddress", label: "Proof of Address" },
+  { name: "driversLicence", label: "Valid Driver's Licence", maxCount: 2 },
+  { name: "passport", label: "Valid Passport", maxCount: 2 },
+  { name: "payslips", label: "Most recent 2 consecutive payslips (if PAYG)", maxCount: 4 },
+  {
+    name: "incomeProof",
+    label: "Latest 3-month bank statement (salary credits) or latest FY income statement (if PAYG)",
+    maxCount: 6,
+  },
+  {
+    name: "homeLoanStatements",
+    label: "Latest 6-month home loan statement(s) (for any mortgaged property)",
+    maxCount: 6,
+  },
+  {
+    name: "rentalIncomeStatements",
+    label: "Latest rental income statement(s) (for investment properties)",
+    maxCount: 6,
+  },
+  {
+    name: "councilRatesNotices",
+    label: "Most recent Council Rates Notice + payment proof (for owned properties)",
+    maxCount: 6,
+  },
+  {
+    name: "taxReturn",
+    label: "Most recent Individual Tax Return FY25 or FY26 (if self-employed)",
+    maxCount: 4,
+  },
+  {
+    name: "liabilityStatements",
+    label: "Latest 1-month statement(s) for liabilities (credit cards, loans, etc.)",
+    maxCount: 10,
+  },
 ];
 
 const storage = multer.diskStorage({
@@ -96,7 +128,7 @@ app.use(express.static(path.join(APP_DIR, "public")));
 app.post(
   "/api/submit",
   assignSubmissionId,
-  upload.fields(FILE_FIELDS.map((f) => ({ name: f.name, maxCount: 1 }))),
+  upload.fields(FILE_FIELDS.map((f) => ({ name: f.name, maxCount: f.maxCount }))),
   async (req, res) => {
     let clientInfo;
     try {
@@ -116,15 +148,15 @@ app.post(
 
     const files = {};
     for (const field of FILE_FIELDS) {
-      const uploaded = req.files && req.files[field.name] && req.files[field.name][0];
-      if (uploaded) {
-        files[field.name] = {
+      const uploaded = (req.files && req.files[field.name]) || [];
+      if (uploaded.length) {
+        files[field.name] = uploaded.map((f) => ({
           label: field.label,
-          originalName: uploaded.originalname,
-          storedName: uploaded.filename,
-          size: uploaded.size,
-          mime: uploaded.mimetype,
-        };
+          originalName: f.originalname,
+          storedName: f.filename,
+          size: f.size,
+          mime: f.mimetype,
+        }));
       }
     }
 
@@ -158,7 +190,10 @@ app.get("/api/submissions", async (req, res) => {
       phone: s.phone,
       occupation: (s.clientInfo && s.clientInfo.employment && s.clientInfo.employment.occupation) || "",
       status: s.status,
-      fileCount: Object.keys(s.files || {}).length,
+      fileCount: Object.values(s.files || {}).reduce(
+        (sum, entry) => sum + (Array.isArray(entry) ? entry.length : entry ? 1 : 0),
+        0
+      ),
       submittedAt: s.submittedAt,
       updatedAt: s.updatedAt,
     }))
@@ -204,12 +239,16 @@ app.get("/api/submissions/:id/pdf", async (req, res) => {
   buildClientPdf(res, submission);
 });
 
-// Download / view an uploaded file
-app.get("/api/submissions/:id/files/:field", async (req, res) => {
+// Download / view an uploaded file. :index selects which file when a field
+// has multiple uploads (older submissions stored a single object per field
+// instead of an array, so both shapes are handled here).
+app.get("/api/submissions/:id/files/:field/:index", async (req, res) => {
   const submission = await db.getSubmission(req.params.id);
   if (!submission) return res.status(404).json({ error: "Not found" });
 
-  const fileMeta = submission.files && submission.files[req.params.field];
+  const entry = submission.files && submission.files[req.params.field];
+  const list = Array.isArray(entry) ? entry : entry ? [entry] : [];
+  const fileMeta = list[Number(req.params.index)];
   if (!fileMeta) return res.status(404).json({ error: "File not found" });
 
   const filePath = path.join(UPLOADS_DIR, req.params.id, fileMeta.storedName);

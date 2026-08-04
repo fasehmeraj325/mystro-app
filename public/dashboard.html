@@ -176,7 +176,7 @@ function renderSections(s) {
       ['Middle name', p.hasMiddleName === 'Yes' ? p.middleName : '—'],
       ['Australian citizen', p.australianCitizen], ['Driving licence', p.drivingLicense],
       ['Marital status', p.maritalStatus], ['Dependants', p.dependants],
-      ['Dependants age(s)', p.dependantsAges],
+      ['Number of dependants', p.dependantsCount], ['Dependants age(s)', p.dependantsAges],
     ]));
   }
 
@@ -202,6 +202,16 @@ function renderSections(s) {
       ['Employer address', e.employerAddress], ['Employer contact', e.employerContactName],
       ['Employer number', e.employerNumber],
     ]));
+
+    const se = e.selfEmployed || {};
+    if (e.employmentType === 'Self-employed' && Object.keys(se).length) {
+      html += sectionBlock('Self Employed', detailGrid([
+        ['Business name', se.businessName], ['Occupation', se.occupation],
+        ['Company type', se.companyType], ['Business start date', se.businessStartDate],
+        ['Current employment status', se.currentEmploymentStatus],
+        ['Nature of business', se.natureOfBusiness], ['ABN/ACN', se.abnAcn],
+      ]));
+    }
   }
 
   if (Object.keys(ai).length) {
@@ -244,6 +254,13 @@ function renderSections(s) {
 
   if (Object.keys(assets).length) {
     let inner = detailGrid([['Assets owned', assets.owned]]);
+    const assetDetails = assets.details || {};
+    Object.keys(assetDetails).forEach(type => {
+      const d = assetDetails[type];
+      inner += subBlock(type, detailGrid([
+        ['Description', d.description], ['Estimated value', fmtMoney(d.estimatedValue)],
+      ]));
+    });
     (assets.savingsAccounts || []).forEach((acc, i) => {
       inner += subBlock(`Savings account ${i + 1}`, detailGrid([
         ['Savings amount', fmtMoney(acc.savingsAmount)], ['Financial institution', acc.financialInstitution],
@@ -271,6 +288,22 @@ function renderSections(s) {
     html += sectionBlock('Liabilities', inner);
   }
 
+  const oe = info.ongoingExpenses || {};
+  if (Object.keys(oe).length) {
+    let inner = detailGrid([['Expense types', oe.types]]);
+    const expenseDetails = oe.details || {};
+    Object.keys(expenseDetails).forEach(type => {
+      const d = expenseDetails[type];
+      inner += subBlock(type, detailGrid([
+        ['Amount', fmtMoney(d.amount)], ['Frequency', d.frequency],
+      ]));
+    });
+    if (oe.otherDescription) {
+      inner += detailGrid([['Other commitment details', oe.otherDescription]]);
+    }
+    html += sectionBlock('Ongoing Expenses', inner);
+  }
+
   return html;
 }
 
@@ -291,13 +324,17 @@ async function openModal(id) {
     fileList.innerHTML = '<div class="none">No documents uploaded.</div>';
   } else {
     fileList.innerHTML = fileKeys.map(k => {
-      const f = s.files[k];
-      const sizeKb = Math.round(f.size / 1024);
-      return `<div class="doc-block">
-        <div class="doc-heading">${f.label}</div>
-        <div class="doc-meta">${f.originalName} · ${sizeKb} KB</div>
-        <a class="doc-download" href="/api/submissions/${s.id}/files/${k}" target="_blank">Download ↓</a>
-      </div>`;
+      const entry = s.files[k];
+      const list = Array.isArray(entry) ? entry : (entry ? [entry] : []);
+      return list.map((f, i) => {
+        const sizeKb = Math.round(f.size / 1024);
+        const heading = list.length > 1 ? `${f.label} (${i + 1})` : f.label;
+        return `<div class="doc-block">
+          <div class="doc-heading">${heading}</div>
+          <div class="doc-meta">${f.originalName} · ${sizeKb} KB</div>
+          <a class="doc-download" href="/api/submissions/${s.id}/files/${k}/${i}" target="_blank">Download ↓</a>
+        </div>`;
+      }).join('');
     }).join('');
   }
 

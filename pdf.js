@@ -138,6 +138,7 @@ function buildClientPdf(res, submission) {
     ["Australian driving licence", p.drivingLicense],
     ["Marital status", p.maritalStatus],
     ["Dependants", p.dependants],
+    ["Number of dependants", p.dependantsCount],
     ["Dependants age(s)", p.dependantsAges],
   ]);
 
@@ -172,6 +173,20 @@ function buildClientPdf(res, submission) {
     ["Employer contact name", e.employerContactName],
     ["Employer number", e.employerNumber],
   ]);
+
+  const se = e.selfEmployed || {};
+  if (e.employmentType === "Self-employed" && Object.keys(se).length) {
+    sectionHeading(doc, "Self Employed");
+    rows(doc, [
+      ["Business name", se.businessName],
+      ["Occupation", se.occupation],
+      ["Company type", se.companyType],
+      ["Business start date", se.businessStartDate],
+      ["Current employment status", se.currentEmploymentStatus],
+      ["Nature of business", se.natureOfBusiness],
+      ["ABN/ACN", se.abnAcn],
+    ]);
+  }
 
   sectionHeading(doc, "Additional Income");
   rows(doc, [
@@ -220,6 +235,13 @@ function buildClientPdf(res, submission) {
 
   sectionHeading(doc, "Assets");
   row(doc, "Assets owned", assets.owned);
+  const assetDetails = assets.details || {};
+  Object.keys(assetDetails).forEach((type) => {
+    const d = assetDetails[type] || {};
+    subHeading(doc, type);
+    row(doc, "Description", d.description);
+    moneyRow(doc, "Estimated value", d.estimatedValue);
+  });
   const savingsAccounts = assets.savingsAccounts || [];
   savingsAccounts.forEach((s, i) => {
     subHeading(doc, `Savings account ${i + 1}`);
@@ -252,12 +274,30 @@ function buildClientPdf(res, submission) {
     if (c.interestRateKnown === "Yes") row(doc, "Interest rate", c.interestRate ? `${c.interestRate}%` : "");
   });
 
-  const fileKeys = Object.keys(submission.files || {});
+  const oe = info.ongoingExpenses || {};
+  if (Object.keys(oe).length) {
+    sectionHeading(doc, "Ongoing Expenses");
+    row(doc, "Expense types", oe.types);
+    const expenseDetails = oe.details || {};
+    Object.keys(expenseDetails).forEach((type) => {
+      const d = expenseDetails[type] || {};
+      subHeading(doc, type);
+      moneyRow(doc, "Amount", d.amount);
+      row(doc, "Frequency", d.frequency);
+    });
+    if (oe.otherDescription) row(doc, "Other commitment details", oe.otherDescription);
+  }
+
+  const fileFields = submission.files || {};
+  const fileKeys = Object.keys(fileFields);
   if (fileKeys.length) {
     sectionHeading(doc, "Documents Uploaded");
     fileKeys.forEach((k) => {
-      const f = submission.files[k];
-      row(doc, f.label, f.originalName);
+      const entry = fileFields[k];
+      const list = Array.isArray(entry) ? entry : entry ? [entry] : [];
+      list.forEach((f, i) => {
+        row(doc, list.length > 1 ? `${f.label} (${i + 1})` : f.label, f.originalName);
+      });
     });
   }
 

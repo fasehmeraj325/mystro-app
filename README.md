@@ -41,8 +41,8 @@ A self-hosted client onboarding tool: a client-facing intake form (a full financ
 
 ## How it works
 
-- Clients fill out the form at `/` — personal details, address (current + previous), employment & income, additional income sources, real estate assets (existing home + any number of investment properties), other assets (including multiple savings accounts), liabilities (multiple personal loans and credit cards), plus up to four document uploads (photo ID, proof of income, bank statement, proof of address). Scoped to a single applicant for now — no joint-applicant support yet.
-- The structured form data is stored as JSON in Postgres (the `client_info` column — see `db.js`), alongside plain columns for name/email/phone/status used by the dashboard table. Uploaded files are saved under `data/uploads/<submission-id>/` on disk, with their metadata stored in Postgres.
+- Clients fill out the form at `/` — personal details, address (current + previous), employment & income (a dedicated PAYG block or a Self Employed block depending on employment type), additional income sources, real estate assets (existing home + any number of investment properties), other assets (description + value per asset type, plus multiple savings accounts), liabilities (multiple personal loans and credit cards), ongoing expenses (school fees, child care, insurances, etc. with amount/frequency), and the required documents (driver's licence, passport, payslips, income proof, home loan/rental/council rates statements, tax return, liability statements — several of these accept multiple files, e.g. one per property or account). Scoped to a single applicant for now — no joint-applicant support yet.
+- The structured form data is stored as JSON in Postgres (the `client_info` column — see `db.js`), alongside plain columns for name/email/phone/status used by the dashboard table. Uploaded files are saved under `data/uploads/<submission-id>/` on disk, with their metadata stored in Postgres as an array per document field (supporting multiple files per field).
 - The dashboard at `/dashboard.html` lists all submissions with quick stats, and clicking a row opens the full detail broken into the same sections as the intake form, a **Download Client Form (PDF)** button that generates a formatted PDF of everything, individual document blocks (each with its own heading and download link), and a status control (New / In Review / Approved / Rejected).
 - `pdf.js` generates the client-form PDF on demand (via `pdfkit`) — no data is pre-rendered or cached.
 - `migrate-data.js` is a one-time script used to move data from the old `data/submissions.json` file format into Postgres — you shouldn't need to run it again unless restoring from an old backup.
@@ -57,7 +57,7 @@ While `npm start` is running on your machine, the form only works on `localhost`
 ## Customizing
 
 - **Form fields**: edit `public/index.html` (the `<form>` and the `buildClientInfo()` function that assembles the submitted JSON). The dashboard's detail view (`renderSections()` in `public/dashboard.html`) and the PDF (`pdf.js`) both read from that same `clientInfo` shape, so add matching sections in both when you add fields.
-- **Document types**: change the `FILE_FIELDS` array near the top of `server.js`, and update the matching upload boxes in `public/index.html`.
+- **Document types**: change the `FILE_FIELDS` array near the top of `server.js` (each entry's `maxCount` controls how many files that field accepts), and update the matching upload boxes in `public/index.html`.
 - **Branding**: colors and layout live in `public/style.css` (see the `:root` variables at the top for the color palette).
 - **Statuses**: the four statuses (New/In Review/Approved/Rejected) are defined in `server.js` (`PATCH /api/submissions/:id`) and `public/dashboard.html`.
 

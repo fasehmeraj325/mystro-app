@@ -99,10 +99,14 @@
       </div>
       <div class="field">
         <label for="p_dependants">Dependants?</label>
-        <select id="p_dependants" class="yesno" data-show="#p_dependantsAgesField">
+        <select id="p_dependants" class="yesno" data-show="#p_dependantsCountField, #p_dependantsAgesField">
           <option>No</option>
           <option>Yes</option>
         </select>
+      </div>
+      <div class="field hidden" id="p_dependantsCountField">
+        <label for="p_dependantsCount">Number of dependants</label>
+        <input type="number" min="0" id="p_dependantsCount" />
       </div>
       <div class="field hidden" id="p_dependantsAgesField">
         <label for="p_dependantsAges">Dependants age(s)</label>
@@ -170,7 +174,7 @@
     <div class="grid2">
       <div class="field">
         <label for="e_currentlyEmployed">Currently employed?</label>
-        <select id="e_currentlyEmployed" class="yesno" data-show="#e_currentJobFields">
+        <select id="e_currentlyEmployed">
           <option>Yes</option>
           <option>No</option>
         </select>
@@ -193,6 +197,7 @@
       </div>
     </div>
 
+    <div class="subsection" id="e_currentJobHeading">Employment & Income (PAYG)</div>
     <div id="e_currentJobFields" class="grid2">
       <div class="field" style="grid-column:1/-1;">
         <label for="e_employerName">Employer's business name</label>
@@ -238,6 +243,46 @@
       <div class="field">
         <label for="e_employerNumber">Employer number</label>
         <input type="tel" id="e_employerNumber" />
+      </div>
+    </div>
+
+    <div class="subsection hidden" id="e_selfEmployedHeading">Self Employed</div>
+    <div id="e_selfEmployedFields" class="grid2 hidden">
+      <div class="field">
+        <label for="se_businessName">Business name</label>
+        <input type="text" id="se_businessName" />
+      </div>
+      <div class="field">
+        <label for="se_occupation">Occupation</label>
+        <input type="text" id="se_occupation" />
+      </div>
+      <div class="field">
+        <label for="se_companyType">Company type</label>
+        <select id="se_companyType">
+          <option>Sole Trader</option>
+          <option>Partnership</option>
+          <option>Company</option>
+          <option>Trust</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="se_businessStartDate">Business start date</label>
+        <input type="date" id="se_businessStartDate" />
+      </div>
+      <div class="field">
+        <label for="se_currentEmploymentStatus">Current employment status</label>
+        <select id="se_currentEmploymentStatus">
+          <option>Full Time</option>
+          <option>Part Time</option>
+        </select>
+      </div>
+      <div class="field" style="grid-column:1/-1;">
+        <label for="se_natureOfBusiness">Nature of business</label>
+        <input type="text" id="se_natureOfBusiness" />
+      </div>
+      <div class="field">
+        <label for="se_abnAcn">ABN/ACN</label>
+        <input type="text" id="se_abnAcn" />
       </div>
     </div>
 
@@ -357,6 +402,7 @@
         <label class="check"><input type="checkbox" value="No Assets" /> No Assets</label>
       </div>
     </div>
+    <div id="assetDetails"></div>
     <div id="savingsBlock" class="hidden">
       <div class="subsection">Savings accounts</div>
       <div id="savingsList"></div>
@@ -388,38 +434,87 @@
       <button type="button" class="secondary" id="addCreditCard">+ Add credit card</button>
     </div>
 
-    <div class="section-title">Documents</div>
+    <div class="section-title">Ongoing expenses</div>
+    <div class="field">
+      <label>Do you have any of the following ongoing commitments?</label>
+      <div class="checks" id="expenseChecks">
+        <label class="check"><input type="checkbox" value="Private School Fees" /> Private School Fees</label>
+        <label class="check"><input type="checkbox" value="Child Care" /> Child Care</label>
+        <label class="check"><input type="checkbox" value="Health Insurance" /> Health Insurance</label>
+        <label class="check"><input type="checkbox" value="Home Insurance" /> Home Insurance</label>
+        <label class="check"><input type="checkbox" value="Car Insurance" /> Car Insurance</label>
+        <label class="check"><input type="checkbox" value="Other" /> Other significant ongoing commitments</label>
+      </div>
+      <div id="expenseDetails"></div>
+    </div>
+    <div class="field hidden" id="expenseOtherField">
+      <label for="oe_otherDescription">Describe other ongoing commitment(s)</label>
+      <input type="text" id="oe_otherDescription" />
+    </div>
+
+    <div class="section-title">Required documents</div>
     <div class="grid2">
       <div class="field">
-        <label>Photo ID</label>
-        <label class="file-drop" for="idDocument">
-          <input type="file" id="idDocument" name="idDocument" />
+        <label>Valid Driver's Licence</label>
+        <label class="file-drop" for="driversLicence">
+          <input type="file" id="driversLicence" name="driversLicence" multiple />
           <div class="fname" data-empty="Click to upload">Click to upload</div>
-          <div class="hint">Passport or driver's licence</div>
         </label>
       </div>
       <div class="field">
-        <label>Proof of income</label>
-        <label class="file-drop" for="proofOfIncome">
-          <input type="file" id="proofOfIncome" name="proofOfIncome" />
+        <label>Valid Passport</label>
+        <label class="file-drop" for="passport">
+          <input type="file" id="passport" name="passport" multiple />
           <div class="fname" data-empty="Click to upload">Click to upload</div>
-          <div class="hint">Recent payslip or tax return</div>
         </label>
       </div>
       <div class="field">
-        <label>Bank statement</label>
-        <label class="file-drop" for="bankStatement">
-          <input type="file" id="bankStatement" name="bankStatement" />
+        <label>Payslips <span class="opt">(2 most recent, if PAYG)</span></label>
+        <label class="file-drop" for="payslips">
+          <input type="file" id="payslips" name="payslips" multiple />
           <div class="fname" data-empty="Click to upload">Click to upload</div>
-          <div class="hint">Last 3 months</div>
         </label>
       </div>
       <div class="field">
-        <label>Proof of address</label>
-        <label class="file-drop" for="proofOfAddress">
-          <input type="file" id="proofOfAddress" name="proofOfAddress" />
+        <label>Income proof <span class="opt">(3-mo bank statement or FY income statement, if PAYG)</span></label>
+        <label class="file-drop" for="incomeProof">
+          <input type="file" id="incomeProof" name="incomeProof" multiple />
           <div class="fname" data-empty="Click to upload">Click to upload</div>
-          <div class="hint">Utility bill or lease agreement</div>
+        </label>
+      </div>
+      <div class="field">
+        <label>Home loan statement(s) <span class="opt">(last 6 months, if mortgaged)</span></label>
+        <label class="file-drop" for="homeLoanStatements">
+          <input type="file" id="homeLoanStatements" name="homeLoanStatements" multiple />
+          <div class="fname" data-empty="Click to upload">Click to upload</div>
+        </label>
+      </div>
+      <div class="field">
+        <label>Rental income statement(s) <span class="opt">(investment properties)</span></label>
+        <label class="file-drop" for="rentalIncomeStatements">
+          <input type="file" id="rentalIncomeStatements" name="rentalIncomeStatements" multiple />
+          <div class="fname" data-empty="Click to upload">Click to upload</div>
+        </label>
+      </div>
+      <div class="field">
+        <label>Council Rates Notice <span class="opt">(+ payment proof, owned properties)</span></label>
+        <label class="file-drop" for="councilRatesNotices">
+          <input type="file" id="councilRatesNotices" name="councilRatesNotices" multiple />
+          <div class="fname" data-empty="Click to upload">Click to upload</div>
+        </label>
+      </div>
+      <div class="field">
+        <label>Individual Tax Return <span class="opt">(FY25/FY26, if self-employed)</span></label>
+        <label class="file-drop" for="taxReturn">
+          <input type="file" id="taxReturn" name="taxReturn" multiple />
+          <div class="fname" data-empty="Click to upload">Click to upload</div>
+        </label>
+      </div>
+      <div class="field">
+        <label>Liability statement(s) <span class="opt">(latest 1 month, where applicable)</span></label>
+        <label class="file-drop" for="liabilityStatements">
+          <input type="file" id="liabilityStatements" name="liabilityStatements" multiple />
+          <div class="fname" data-empty="Click to upload">Click to upload</div>
         </label>
       </div>
     </div>
@@ -515,7 +610,13 @@
 document.querySelectorAll('.file-drop input[type=file]').forEach(input => {
   input.addEventListener('change', () => {
     const label = input.closest('.file-drop').querySelector('.fname');
-    label.textContent = input.files.length ? input.files[0].name : label.dataset.empty;
+    if (!input.files.length) {
+      label.textContent = label.dataset.empty;
+    } else if (input.files.length === 1) {
+      label.textContent = input.files[0].name;
+    } else {
+      label.textContent = `${input.files.length} files selected`;
+    }
   });
 });
 
@@ -523,14 +624,14 @@ document.querySelectorAll('.file-drop input[type=file]').forEach(input => {
 function wireYesNoToggles(root) {
   root.querySelectorAll('select.yesno').forEach(sel => {
     const apply = () => {
-      const showTarget = sel.dataset.show ? root.querySelector(sel.dataset.show) : null;
-      const hideTarget = sel.dataset.showInverse ? root.querySelector(sel.dataset.showInverse) : null;
+      const showTargets = sel.dataset.show ? root.querySelectorAll(sel.dataset.show) : [];
+      const hideTargets = sel.dataset.showInverse ? root.querySelectorAll(sel.dataset.showInverse) : [];
       const siblingTarget = sel.dataset.showSibling
         ? sel.closest('.repeat-item, .grid2, .field')?.parentElement?.querySelector(sel.dataset.showSibling)
         : null;
 
-      if (showTarget) showTarget.classList.toggle('hidden', sel.value !== 'Yes');
-      if (hideTarget) hideTarget.classList.toggle('hidden', sel.value === 'Yes');
+      showTargets.forEach(t => t.classList.toggle('hidden', sel.value !== 'Yes'));
+      hideTargets.forEach(t => t.classList.toggle('hidden', sel.value === 'Yes'));
       if (siblingTarget) siblingTarget.classList.toggle('hidden', sel.value !== 'Yes');
     };
     sel.addEventListener('change', apply);
@@ -585,6 +686,99 @@ document.getElementById('liabilityChecks').addEventListener('change', () => {
   document.getElementById('personalLoansBlock').classList.toggle('hidden', !types.includes('Personal Loans'));
   document.getElementById('creditCardsBlock').classList.toggle('hidden', !types.includes('Credit Cards'));
 });
+
+// --- employment type: PAYG vs Self Employed --------------------------------
+function updateEmploymentVisibility() {
+  const employed = val('e_currentlyEmployed') === 'Yes';
+  const type = val('e_employmentType');
+  const isPayg = employed && (type === 'PAYG' || type === 'Contractor');
+  const isSelfEmployed = employed && type === 'Self-employed';
+
+  document.getElementById('e_currentJobHeading').classList.toggle('hidden', !isPayg);
+  document.getElementById('e_currentJobFields').classList.toggle('hidden', !isPayg);
+  document.getElementById('e_selfEmployedHeading').classList.toggle('hidden', !isSelfEmployed);
+  document.getElementById('e_selfEmployedFields').classList.toggle('hidden', !isSelfEmployed);
+}
+document.getElementById('e_currentlyEmployed').addEventListener('change', updateEmploymentVisibility);
+document.getElementById('e_employmentType').addEventListener('change', updateEmploymentVisibility);
+updateEmploymentVisibility();
+
+// --- asset detail blocks (description + value per owned asset type) --------
+const ASSET_TYPES_WITH_OWN_UI = ['Savings', 'No Assets'];
+const assetDetailValues = {};
+document.getElementById('assetChecks').addEventListener('change', () => {
+  const owned = checkedValues('assetChecks').filter(t => !ASSET_TYPES_WITH_OWN_UI.includes(t));
+  const detailsEl = document.getElementById('assetDetails');
+  detailsEl.innerHTML = '';
+  owned.forEach(type => {
+    const saved = assetDetailValues[type] || {};
+    const block = document.createElement('div');
+    block.className = 'grid2 income-source-detail';
+    block.innerHTML = `
+      <div class="field" style="grid-column:1/-1;"><label>${type}</label></div>
+      <div class="field">
+        <label>Description</label>
+        <input type="text" data-asset="${type}" data-field="description" value="${saved.description || ''}" />
+      </div>
+      <div class="field">
+        <label>Estimated value</label>
+        <input type="number" min="0" data-asset="${type}" data-field="estimatedValue" value="${saved.estimatedValue || ''}" />
+      </div>
+    `;
+    detailsEl.appendChild(block);
+  });
+});
+
+function collectAssetDetails() {
+  const result = {};
+  document.querySelectorAll('#assetDetails [data-asset]').forEach(el => {
+    const type = el.dataset.asset;
+    result[type] = result[type] || {};
+    result[type][el.dataset.field] = el.value;
+  });
+  return result;
+}
+
+// --- ongoing expense detail blocks ------------------------------------------
+const expenseDetailValues = {};
+document.getElementById('expenseChecks').addEventListener('change', () => {
+  const types = checkedValues('expenseChecks');
+  const detailsEl = document.getElementById('expenseDetails');
+  detailsEl.innerHTML = '';
+  types.forEach(type => {
+    const saved = expenseDetailValues[type] || {};
+    const block = document.createElement('div');
+    block.className = 'grid2 income-source-detail';
+    block.innerHTML = `
+      <div class="field" style="grid-column:1/-1;"><label>${type} — amount &amp; frequency</label></div>
+      <div class="field">
+        <label>Amount</label>
+        <input type="number" min="0" data-expense="${type}" data-field="amount" value="${saved.amount || ''}" />
+      </div>
+      <div class="field">
+        <label>Frequency</label>
+        <select data-expense="${type}" data-field="frequency">
+          <option${saved.frequency === 'Weekly' ? ' selected' : ''}>Weekly</option>
+          <option${saved.frequency === 'Fortnightly' ? ' selected' : ''}>Fortnightly</option>
+          <option${!saved.frequency || saved.frequency === 'Monthly' ? ' selected' : ''}>Monthly</option>
+          <option${saved.frequency === 'Annually' ? ' selected' : ''}>Annually</option>
+        </select>
+      </div>
+    `;
+    detailsEl.appendChild(block);
+  });
+  document.getElementById('expenseOtherField').classList.toggle('hidden', !types.includes('Other'));
+});
+
+function collectExpenseDetails() {
+  const result = {};
+  document.querySelectorAll('#expenseDetails [data-expense]').forEach(el => {
+    const type = el.dataset.expense;
+    result[type] = result[type] || {};
+    result[type][el.dataset.field] = el.value;
+  });
+  return result;
+}
 
 // --- additional income source detail blocks --------------------------------
 const additionalIncomeDetails = {};
@@ -644,6 +838,7 @@ function buildClientInfo() {
       drivingLicense: val('p_license'),
       maritalStatus: val('p_marital'),
       dependants: val('p_dependants'),
+      dependantsCount: val('p_dependantsCount'),
       dependantsAges: val('p_dependantsAges'),
     },
     address: {
@@ -671,6 +866,15 @@ function buildClientInfo() {
       employerAddress: val('e_employerAddress'),
       employerContactName: val('e_employerContactName'),
       employerNumber: val('e_employerNumber'),
+      selfEmployed: {
+        businessName: val('se_businessName'),
+        occupation: val('se_occupation'),
+        companyType: val('se_companyType'),
+        businessStartDate: val('se_businessStartDate'),
+        currentEmploymentStatus: val('se_currentEmploymentStatus'),
+        natureOfBusiness: val('se_natureOfBusiness'),
+        abnAcn: val('se_abnAcn'),
+      },
     },
     additionalIncome: {
       fromEmployment: val('ai_fromEmployment'),
@@ -696,12 +900,18 @@ function buildClientInfo() {
     },
     assets: {
       owned: checkedValues('assetChecks'),
+      details: collectAssetDetails(),
       savingsAccounts: readRepeatable(savingsRepeat.container),
     },
     liabilities: {
       types: checkedValues('liabilityChecks'),
       personalLoans: readRepeatable(personalLoanRepeat.container),
       creditCards: readRepeatable(creditCardRepeat.container),
+    },
+    ongoingExpenses: {
+      types: checkedValues('expenseChecks'),
+      details: collectExpenseDetails(),
+      otherDescription: val('oe_otherDescription'),
     },
   };
 }
@@ -734,10 +944,14 @@ form.addEventListener('submit', async (e) => {
     document.querySelectorAll('.file-drop .fname').forEach(el => el.textContent = el.dataset.empty);
     document.querySelectorAll('.repeat-item').forEach(el => el.remove());
     document.getElementById('ai_sourceDetails').innerHTML = '';
+    document.getElementById('assetDetails').innerHTML = '';
+    document.getElementById('expenseDetails').innerHTML = '';
     wireYesNoToggles(document);
+    updateEmploymentVisibility();
     document.getElementById('savingsBlock').classList.add('hidden');
     document.getElementById('personalLoansBlock').classList.add('hidden');
     document.getElementById('creditCardsBlock').classList.add('hidden');
+    document.getElementById('expenseOtherField').classList.add('hidden');
   } catch (err) {
     msg.className = 'msg err';
     msg.textContent = err.message;
