@@ -3,13 +3,13 @@ require("dotenv").config();
 const express = require("express");
 const helmet = require("helmet");
 const multer = require("multer");
+const cloudinary = require("cloudinary").v2;
 const rateLimit = require("express-rate-limit");
 const session = require("express-session");
 const PgSession = require("connect-pg-simple")(session);
 const bcrypt = require("bcrypt");
 const dns = require("dns");
 const disposableDomains = require("disposable-email-domains");
-const fs = require("fs");
 const path = require("path");
 const { randomUUID, randomInt, randomBytes, createHash } = require("crypto");
 const db = require("./db");
@@ -17,13 +17,19 @@ const { buildClientPdf } = require("./pdf");
 const { sendClientInvite, sendVerificationCode, sendPasswordReset, APP_URL } = require("./mail");
 
 const APP_DIR = __dirname;
-const DATA_DIR = path.join(APP_DIR, "data");
-const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
 const DISPOSABLE_DOMAINS = new Set(disposableDomains);
 
-// --- bootstrap storage -------------------------------------------------
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+// --- cloud file storage --------------------------------------------------
+// Uploaded documents go straight to Cloudinary rather than local disk, so
+// they survive redeploys/restarts on hosts with ephemeral disks (e.g. free
+// tiers). type: "authenticated" means Cloudinary won't serve a file from its
+// public_id alone — every download must go through a short-lived signed URL
+// we generate ourselves, only after our own session-auth check passes.
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 // --- file upload config -------------------------------------------------
 // Each field accepts up to `maxCount` files; applicability notes (PAYG,
@@ -65,17 +71,55 @@ const FILE_FIELDS = [
   },
 ];
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(UPLOADS_DIR, req.submissionId);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
+// Custom multer storage engine that streams each upload straight to
+// Cloudinary instead of local disk — see the cloud file storage note above.
+class CloudinaryStorage {
+  _handleFile(req, file, cb) {
     const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
-    cb(null, `${file.fieldname}__${safeName}`);
-  },
-});
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: `docklio/${req.submissionId}`,
+        public_id: `${file.fieldname}__${Date.now()}__${safeName}`,
+        resource_type: "auto",
+        type: "authenticated",
+      },
+      (err, result) => {
+        if (err) return cb(err);
+        cb(null, {
+          publicId: result.public_id,
+          resourceType: result.resource_type,
+          format: result.format,
+          size: result.bytes,
+        });
+      }
+    );
+    file.stream.pipe(uploadStream);
+  }
+
+  _removeFile(req, file, cb) {
+    if (!file.publicId) return cb(null);
+    cloudinary.uploader
+      .destroy(file.publicId, { resource_type: file.resourceType, type: "authenticated" })
+      .then(() => cb(null))
+      .catch(cb);
+  }
+}
+
+const storage = new CloudinaryStorage();
+
+// Cleans up files multer already uploaded to Cloudinary when a submission
+// turns out to be invalid/rejected (bad slug, honeypot trip, duplicate) —
+// otherwise those documents would sit in Cloudinary forever, orphaned.
+async function destroyUploadedFiles(req) {
+  const allFiles = Object.values(req.files || {}).flat();
+  await Promise.all(
+    allFiles.map((f) =>
+      cloudinary.uploader
+        .destroy(f.publicId, { resource_type: f.resourceType, type: "authenticated" })
+        .catch((err) => console.error("Failed to remove orphaned upload:", err.message))
+    )
+  );
+}
 
 // Client documents are always images or PDFs in practice (IDs, payslips,
 // statements) — rejecting anything else (executables, HTML, etc.) up front
@@ -518,8 +562,7 @@ app.post(
   asyncHandler(async (req, res) => {
     const company = await db.getCompanyBySlug(req.params.slug);
     if (!company || company.status !== "active") {
-      const dir = path.join(UPLOADS_DIR, req.submissionId);
-      if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+      await destroyUploadedFiles(req);
       return res.status(404).json({ error: "This application link is no longer valid." });
     }
 
@@ -527,8 +570,7 @@ app.post(
     // so only bots that auto-fill every input tend to populate it. Pretend
     // to succeed rather than telling the bot what tripped it.
     if (req.body.company) {
-      const dir = path.join(UPLOADS_DIR, req.submissionId);
-      if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+      await destroyUploadedFiles(req);
       return res.status(201).json({ ok: true, id: req.submissionId });
     }
 
@@ -552,8 +594,7 @@ app.post(
 
     const pending = await db.getPendingSubmissionByEmail(company.id, email);
     if (pending) {
-      const dir = path.join(UPLOADS_DIR, req.submissionId);
-      if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+      await destroyUploadedFiles(req);
       return res.status(409).json({
         error: "You already have an application in progress with this email address. We'll be in touch soon — no need to submit again.",
       });
@@ -566,7 +607,9 @@ app.post(
         files[field.name] = uploaded.map((f) => ({
           label: field.label,
           originalName: f.originalname,
-          storedName: f.filename,
+          publicId: f.publicId,
+          resourceType: f.resourceType,
+          format: f.format,
           size: f.size,
           mime: f.mimetype,
         }));
@@ -662,11 +705,24 @@ app.patch("/api/submissions/:id", asyncHandler(async (req, res) => {
 
 // Delete a submission and its files
 app.delete("/api/submissions/:id", asyncHandler(async (req, res) => {
+  const submission = await db.getSubmission(req.companyId, req.params.id);
+  if (!submission) return res.status(404).json({ error: "Not found" });
+
   const deleted = await db.deleteSubmission(req.companyId, req.params.id);
   if (!deleted) return res.status(404).json({ error: "Not found" });
 
-  const dir = path.join(UPLOADS_DIR, req.params.id);
-  if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+  const allFiles = Object.values(submission.files || {}).flatMap((entry) =>
+    Array.isArray(entry) ? entry : entry ? [entry] : []
+  );
+  await Promise.all(
+    allFiles
+      .filter((f) => f.publicId)
+      .map((f) =>
+        cloudinary.uploader
+          .destroy(f.publicId, { resource_type: f.resourceType, type: "authenticated" })
+          .catch((err) => console.error("Failed to remove upload on delete:", err.message))
+      )
+  );
 
   res.json({ ok: true });
 }));
@@ -688,12 +744,18 @@ app.get("/api/submissions/:id/files/:field/:index", asyncHandler(async (req, res
   const entry = submission.files && submission.files[req.params.field];
   const list = Array.isArray(entry) ? entry : entry ? [entry] : [];
   const fileMeta = list[Number(req.params.index)];
-  if (!fileMeta) return res.status(404).json({ error: "File not found" });
+  if (!fileMeta || !fileMeta.publicId) return res.status(404).json({ error: "File not found" });
 
-  const filePath = path.join(UPLOADS_DIR, req.params.id, fileMeta.storedName);
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: "File missing on disk" });
+  // Freshly generated per request, only reachable after requireCompanyAuthApi
+  // above has already verified this company owns the submission — so this
+  // never hands out a durable, guessable link to the file.
+  const downloadUrl = cloudinary.utils.private_download_url(fileMeta.publicId, fileMeta.format, {
+    resource_type: fileMeta.resourceType,
+    type: "authenticated",
+    attachment: true,
+  });
 
-  res.download(filePath, fileMeta.originalName);
+  res.redirect(downloadUrl);
 }));
 
 // Catches anything forwarded via next(err) (every asyncHandler-wrapped route
