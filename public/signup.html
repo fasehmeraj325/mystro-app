@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Create your account — Mystro Lite</title>
+<title>Create your account — Docklio</title>
 <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
 
 <div class="topbar">
-  <div class="brand"><span class="dot"></span> Mystro Lite</div>
+  <div class="brand"><span class="dot"></span> Docklio</div>
 </div>
 
 <div class="wrap" style="max-width:420px;">
@@ -32,6 +32,10 @@
       <input type="password" id="password" required minlength="8" autocomplete="new-password" />
       <div class="hint" style="margin-top:6px;">At least 8 characters.</div>
     </div>
+    <div class="field">
+      <label for="confirmPassword">Confirm password</label>
+      <input type="password" id="confirmPassword" required minlength="8" autocomplete="new-password" />
+    </div>
     <div class="actions">
       <button type="submit" class="primary" id="signupBtn">Create account</button>
     </div>
@@ -50,6 +54,15 @@ const btn = document.getElementById('signupBtn');
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   msg.className = 'msg hidden';
+
+  const password = document.getElementById('password').value;
+  const confirmPassword = document.getElementById('confirmPassword').value;
+  if (password !== confirmPassword) {
+    msg.className = 'msg err';
+    msg.textContent = 'Passwords do not match.';
+    return;
+  }
+
   btn.disabled = true;
   btn.textContent = 'Creating account...';
 
@@ -61,7 +74,7 @@ form.addEventListener('submit', async (e) => {
       body: JSON.stringify({
         companyName: document.getElementById('companyName').value,
         email,
-        password: document.getElementById('password').value,
+        password,
       }),
     });
     const data = await res.json();

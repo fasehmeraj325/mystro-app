@@ -1,7 +1,20 @@
 const nodemailer = require("nodemailer");
 
 const APP_URL = (process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
-const PLATFORM_NAME = "Mystro Lite";
+const PLATFORM_NAME = "Docklio";
+
+// businessName/senderName/toName are company-entered text (signup form, invite
+// form) reaching an HTML email template — escape before interpolating so a
+// company name like "<img onerror=...>" can't inject markup into an email
+// sent to their own clients.
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 function getTransporter() {
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD } = process.env;
@@ -30,8 +43,11 @@ function getTransporter() {
 // company's own /apply/:slug link.
 async function sendClientInvite({ toEmail, toName, businessName, senderName, applyUrl }) {
   const transporter = getTransporter();
-  const greeting = toName ? `Hi ${toName},` : "Hi there,";
-  const signOff = senderName ? `${senderName}<br />${businessName}` : businessName;
+  const safeName = escapeHtml(businessName);
+  const safeSender = escapeHtml(senderName);
+  const greetingText = toName ? `Hi ${toName},` : "Hi there,";
+  const greeting = toName ? `Hi ${escapeHtml(toName)},` : "Hi there,";
+  const signOff = senderName ? `${safeSender}<br />${safeName}` : safeName;
   const signOffText = senderName ? `${senderName}\n${businessName}` : businessName;
 
   const html = `
@@ -39,7 +55,7 @@ async function sendClientInvite({ toEmail, toName, businessName, senderName, app
       <p style="font-size:15px;">${greeting}</p>
 
       <p style="font-size:15px; line-height:1.6;">
-        Thank you for choosing ${businessName} for your application. To get started, please complete
+        Thank you for choosing ${safeName} for your application. To get started, please complete
         our secure online client information form — it covers your personal details, employment and
         income, assets, and liabilities, and lets you upload your supporting documents directly.
       </p>
@@ -72,7 +88,7 @@ async function sendClientInvite({ toEmail, toName, businessName, senderName, app
   `;
 
   const text = [
-    greeting,
+    greetingText,
     "",
     `Thank you for choosing ${businessName} for your application. To get started, please complete our secure online client information form — it covers your personal details, employment and income, assets, and liabilities, and lets you upload your supporting documents directly.`,
     "",
@@ -122,4 +138,46 @@ async function sendVerificationCode({ toEmail, code }) {
   });
 }
 
-module.exports = { sendClientInvite, sendVerificationCode, APP_URL };
+// Password-reset link, sent from the platform itself (not a tenant company).
+async function sendPasswordReset({ toEmail, resetUrl }) {
+  const transporter = getTransporter();
+
+  const html = `
+    <div style="font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #1a1d29;">
+      <p style="font-size:15px;">Hi there,</p>
+      <p style="font-size:15px; line-height:1.6;">
+        We received a request to reset your ${PLATFORM_NAME} password. Click below to choose a new one:
+      </p>
+      <p style="margin: 28px 0;">
+        <a href="${resetUrl}" style="background:#3a3aff; color:#fff; text-decoration:none; padding:12px 24px; border-radius:8px; font-weight:600; font-size:15px; display:inline-block;">
+          Reset my password
+        </a>
+      </p>
+      <p style="font-size:13px; color:#6b7080; line-height:1.5;">
+        If the button above doesn't work, copy and paste this link into your browser:<br />
+        <a href="${resetUrl}" style="color:#3a3aff;">${resetUrl}</a>
+      </p>
+      <p style="font-size:13px; color:#6b7080;">This link expires in 30 minutes. If you didn't request this, you can ignore this email — your password won't be changed.</p>
+    </div>
+  `;
+
+  const text = [
+    "Hi there,",
+    "",
+    `We received a request to reset your ${PLATFORM_NAME} password. Use this link to choose a new one:`,
+    "",
+    resetUrl,
+    "",
+    "This link expires in 30 minutes. If you didn't request this, you can ignore this email — your password won't be changed.",
+  ].join("\n");
+
+  await transporter.sendMail({
+    from: `"${PLATFORM_NAME}" <${process.env.SMTP_USER}>`,
+    to: toEmail,
+    subject: `Reset your ${PLATFORM_NAME} password`,
+    text,
+    html,
+  });
+}
+
+module.exports = { sendClientInvite, sendVerificationCode, sendPasswordReset, APP_URL };

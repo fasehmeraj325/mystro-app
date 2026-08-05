@@ -1,6 +1,7 @@
 require("dotenv").config();
 
 const express = require("express");
+const helmet = require("helmet");
 const multer = require("multer");
 const rateLimit = require("express-rate-limit");
 const session = require("express-session");
@@ -10,10 +11,10 @@ const dns = require("dns");
 const disposableDomains = require("disposable-email-domains");
 const fs = require("fs");
 const path = require("path");
-const { randomUUID, randomInt } = require("crypto");
+const { randomUUID, randomInt, randomBytes, createHash } = require("crypto");
 const db = require("./db");
 const { buildClientPdf } = require("./pdf");
-const { sendClientInvite, sendVerificationCode, APP_URL } = require("./mail");
+const { sendClientInvite, sendVerificationCode, sendPasswordReset, APP_URL } = require("./mail");
 
 const APP_DIR = __dirname;
 const DATA_DIR = path.join(APP_DIR, "data");
@@ -76,9 +77,28 @@ const storage = multer.diskStorage({
   },
 });
 
+// Client documents are always images or PDFs in practice (IDs, payslips,
+// statements) — rejecting anything else (executables, HTML, etc.) up front
+// costs nothing and closes off a whole class of malicious-upload mischief.
+const ALLOWED_DOCUMENT_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/heic",
+  "image/webp",
+]);
+
 const upload = multer({
   storage,
   limits: { fileSize: 15 * 1024 * 1024 }, // 15MB per file
+  fileFilter: (req, file, cb) => {
+    if (!ALLOWED_DOCUMENT_MIME_TYPES.has(file.mimetype)) {
+      const err = new Error("Only PDF and image files (JPG, PNG, HEIC, WEBP) are accepted.");
+      err.statusCode = 400;
+      return cb(err);
+    }
+    cb(null, true);
+  },
 });
 
 // assign a submission id before multer runs so files land in the right folder
@@ -136,6 +156,22 @@ const verifyLimiter = rateLimit({
   message: { error: "Too many attempts. Please try again later." },
 });
 
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please try again later." },
+});
+
+const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts. Please try again later." },
+});
+
 // --- dashboard auth -----------------------------------------------------
 // Every company logs in via session now (see /api/auth/login below).
 
@@ -155,7 +191,28 @@ function requireCompanyAuthPage(req, res, next) {
   return res.redirect("/login.html");
 }
 
+// Wraps an async route handler so a rejected promise (e.g. a Postgres error
+// from a malformed id) reaches Express's error handler instead of becoming
+// an unhandled rejection — which crashes the whole process for every company.
+function asyncHandler(fn) {
+  return (req, res, next) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+}
+
 const app = express();
+
+// Exactly one reverse proxy hop is assumed (Render/Railway/Fly/etc. style
+// hosting) — needed so express-rate-limit reads the real client IP from
+// X-Forwarded-For instead of the proxy's own address.
+app.set("trust proxy", 1);
+
+// contentSecurityPolicy is off because every page here uses inline <script>
+// tags; enabling helmet's default CSP would silently block them. Everything
+// else (X-Content-Type-Options, X-Frame-Options, HSTS once behind HTTPS,
+// etc.) stays on.
+app.use(helmet({ contentSecurityPolicy: false }));
+
 app.use(express.json());
 app.use(
   session({
@@ -377,15 +434,68 @@ app.post("/api/auth/logout", (req, res) => {
   req.session.destroy(() => res.json({ ok: true }));
 });
 
+function hashResetToken(token) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+app.post("/api/auth/forgot-password", forgotPasswordLimiter, async (req, res) => {
+  const email = String((req.body || {}).email || "").trim().toLowerCase();
+  const user = await db.getUserByEmail(email);
+
+  // Only active accounts get a reset link, but the response never reveals
+  // whether the email matched — otherwise this endpoint becomes a way to
+  // enumerate registered accounts.
+  if (user && user.status === "active") {
+    try {
+      const token = randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+      await db.createPasswordReset({
+        id: randomUUID(),
+        userId: user.id,
+        tokenHash: hashResetToken(token),
+        expiresAt,
+      });
+      await sendPasswordReset({ toEmail: email, resetUrl: `${APP_URL}/reset-password.html?token=${token}` });
+    } catch (err) {
+      console.error("Failed to send password reset email:", err.message);
+    }
+  }
+
+  res.json({ ok: true });
+});
+
+app.post("/api/auth/reset-password", resetPasswordLimiter, async (req, res) => {
+  try {
+    const token = String((req.body || {}).token || "").trim();
+    const password = String((req.body || {}).password || "");
+
+    if (!token) return res.status(400).json({ error: "This reset link is invalid or has expired." });
+    if (password.length < 8) return res.status(400).json({ error: "Password must be at least 8 characters." });
+
+    const reset = await db.getPasswordResetByTokenHash(hashResetToken(token));
+    if (!reset || reset.used || new Date(reset.expiresAt) < new Date()) {
+      return res.status(400).json({ error: "This reset link is invalid or has expired. Request a new one." });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    await db.setUserPassword(reset.userId, passwordHash);
+    await db.markPasswordResetUsed(reset.id);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Reset password failed:", err.message);
+    res.status(500).json({ error: "Something went wrong. Please try again." });
+  }
+});
+
 // Public: look up a company by its application-link slug.
-app.get("/api/public/companies/:slug", async (req, res) => {
+app.get("/api/public/companies/:slug", asyncHandler(async (req, res) => {
   const company = await db.getCompanyBySlug(req.params.slug);
   if (!company || company.status !== "active") return res.status(404).json({ error: "Not found" });
   res.json({ name: company.name, businessName: company.businessName });
-});
+}));
 
 // The logged-in company's own info (for showing its /apply/:slug link etc.)
-app.get("/api/company", requireCompanyAuthApi, async (req, res) => {
+app.get("/api/company", requireCompanyAuthApi, asyncHandler(async (req, res) => {
   const company = await db.getCompanyById(req.companyId);
   if (!company) return res.status(404).json({ error: "Not found" });
   res.json({
@@ -395,7 +505,7 @@ app.get("/api/company", requireCompanyAuthApi, async (req, res) => {
     senderName: company.senderName,
     applyUrl: `${APP_URL}/apply/${company.slug}`,
   });
-});
+}));
 
 // --- API ---------------------------------------------------------------
 
@@ -405,7 +515,7 @@ app.post(
   submitLimiter,
   assignSubmissionId,
   upload.fields(FILE_FIELDS.map((f) => ({ name: f.name, maxCount: f.maxCount }))),
-  async (req, res) => {
+  asyncHandler(async (req, res) => {
     const company = await db.getCompanyBySlug(req.params.slug);
     if (!company || company.status !== "active") {
       const dir = path.join(UPLOADS_DIR, req.submissionId);
@@ -430,7 +540,9 @@ app.post(
     }
 
     const personal = clientInfo.personal || {};
-    const fullName = [personal.firstName, personal.surname].filter(Boolean).join(" ").trim();
+    // Surname is optional now that Last name exists as its own field — prefer
+    // Last name when present, falling back to Surname for older submissions.
+    const fullName = [personal.firstName, personal.lastName || personal.surname].filter(Boolean).join(" ").trim();
     const email = personal.email || "";
     const phone = personal.mobilePhone || "";
 
@@ -478,7 +590,7 @@ app.post(
     await db.insertSubmission(submission);
 
     res.status(201).json({ ok: true, id: submission.id });
-  }
+  })
 );
 
 // Email a client the intake form link (admin-only)
@@ -502,12 +614,12 @@ app.post("/api/send-invite", async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error("Failed to send invite email:", err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong sending that email. Please try again." });
   }
 });
 
 // List submissions (summary, for dashboard table)
-app.get("/api/submissions", async (req, res) => {
+app.get("/api/submissions", asyncHandler(async (req, res) => {
   const list = await db.listSubmissions(req.companyId);
   res.json(
     list.map((s) => ({
@@ -525,17 +637,17 @@ app.get("/api/submissions", async (req, res) => {
       updatedAt: s.updatedAt,
     }))
   );
-});
+}));
 
 // Full detail for one submission
-app.get("/api/submissions/:id", async (req, res) => {
+app.get("/api/submissions/:id", asyncHandler(async (req, res) => {
   const submission = await db.getSubmission(req.companyId, req.params.id);
   if (!submission) return res.status(404).json({ error: "Not found" });
   res.json(submission);
-});
+}));
 
 // Update status (New / In Review / Approved / Rejected)
-app.patch("/api/submissions/:id", async (req, res) => {
+app.patch("/api/submissions/:id", asyncHandler(async (req, res) => {
   const allowed = ["New", "In Review", "Approved", "Rejected"];
   if (!req.body.status || !allowed.includes(req.body.status)) {
     const submission = await db.getSubmission(req.companyId, req.params.id);
@@ -546,10 +658,10 @@ app.patch("/api/submissions/:id", async (req, res) => {
   const submission = await db.updateSubmissionStatus(req.companyId, req.params.id, req.body.status);
   if (!submission) return res.status(404).json({ error: "Not found" });
   res.json(submission);
-});
+}));
 
 // Delete a submission and its files
-app.delete("/api/submissions/:id", async (req, res) => {
+app.delete("/api/submissions/:id", asyncHandler(async (req, res) => {
   const deleted = await db.deleteSubmission(req.companyId, req.params.id);
   if (!deleted) return res.status(404).json({ error: "Not found" });
 
@@ -557,19 +669,19 @@ app.delete("/api/submissions/:id", async (req, res) => {
   if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
 
   res.json({ ok: true });
-});
+}));
 
 // Download the full client information form as a PDF
-app.get("/api/submissions/:id/pdf", async (req, res) => {
+app.get("/api/submissions/:id/pdf", asyncHandler(async (req, res) => {
   const submission = await db.getSubmission(req.companyId, req.params.id);
   if (!submission) return res.status(404).json({ error: "Not found" });
   buildClientPdf(res, submission);
-});
+}));
 
 // Download / view an uploaded file. :index selects which file when a field
 // has multiple uploads (older submissions stored a single object per field
 // instead of an array, so both shapes are handled here).
-app.get("/api/submissions/:id/files/:field/:index", async (req, res) => {
+app.get("/api/submissions/:id/files/:field/:index", asyncHandler(async (req, res) => {
   const submission = await db.getSubmission(req.companyId, req.params.id);
   if (!submission) return res.status(404).json({ error: "Not found" });
 
@@ -582,6 +694,29 @@ app.get("/api/submissions/:id/files/:field/:index", async (req, res) => {
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: "File missing on disk" });
 
   res.download(filePath, fileMeta.originalName);
+}));
+
+// Catches anything forwarded via next(err) (every asyncHandler-wrapped route
+// above) so a bad request — a malformed id, a Postgres error, anything —
+// returns a normal 500 to that one request instead of crashing the process
+// for every company. Must be defined last, after all routes.
+app.use((err, req, res, next) => {
+  console.error("Unhandled request error:", err);
+  if (res.headersSent) return next(err);
+  // err.statusCode marks a deliberate, safe-to-show validation error (e.g.
+  // the upload file-type filter) — anything else stays a generic message so
+  // internal error details (DB errors, stack traces, etc.) never reach the client.
+  if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
+  res.status(500).json({ error: "Something went wrong. Please try again." });
+});
+
+// Final safety net: log and keep running instead of crashing on anything
+// that still slips past Express (a bug in a future route, a stray callback).
+process.on("unhandledRejection", (err) => {
+  console.error("Unhandled promise rejection:", err);
+});
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception:", err);
 });
 
 const PORT = process.env.PORT || 3000;
@@ -589,7 +724,7 @@ const PORT = process.env.PORT || 3000;
 db.initSchema()
   .then(() => {
     app.listen(PORT, () => {
-      console.log(`Mystro Lite running at http://localhost:${PORT}`);
+      console.log(`Docklio running at http://localhost:${PORT}`);
       console.log(`Sign up / log in:   http://localhost:${PORT}/login.html`);
       console.log(`Dashboard:          http://localhost:${PORT}/dashboard.html`);
     });

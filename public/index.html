@@ -9,7 +9,7 @@
 <body>
 
 <div class="topbar">
-  <div class="brand"><span class="dot"></span> <span id="brandName">Mystro Lite</span></div>
+  <div class="brand"><span class="dot"></span> <span id="brandName">Docklio</span></div>
 </div>
 
 <div class="wrap">
@@ -55,12 +55,16 @@
         </select>
       </div>
       <div class="field">
-        <label for="p_firstName">First name</label>
+        <label for="p_firstName">First name <span class="req">*</span></label>
         <input type="text" id="p_firstName" required />
       </div>
       <div class="field">
         <label for="p_surname">Surname</label>
-        <input type="text" id="p_surname" required />
+        <input type="text" id="p_surname" />
+      </div>
+      <div class="field">
+        <label for="p_lastName">Last name</label>
+        <input type="text" id="p_lastName" />
       </div>
       <div class="field">
         <label for="p_hasMiddleName">Do you have a middle name?</label>
@@ -74,7 +78,7 @@
         <input type="text" id="p_middleName" />
       </div>
       <div class="field">
-        <label for="p_email">Email address</label>
+        <label for="p_email">Email address <span class="req">*</span></label>
         <input type="email" id="p_email" required />
       </div>
       <div class="field">
@@ -125,7 +129,7 @@
     <div class="section-title">Address</div>
     <div class="grid2">
       <div class="field" style="grid-column:1/-1;">
-        <label for="a_residentialAddress">Residential address</label>
+        <label for="a_residentialAddress">Residential address <span class="req">*</span></label>
         <input type="text" id="a_residentialAddress" required />
       </div>
       <div class="field">
@@ -331,6 +335,303 @@
       <div id="ai_sourceDetails"></div>
     </div>
 
+    <div id="secondApplicantSection" class="hidden">
+      <div class="section-title">Second applicant</div>
+
+      <div class="subsection">Personal details</div>
+      <div class="grid2">
+        <div class="field">
+          <label for="p2_title">Title</label>
+          <select id="p2_title">
+            <option>Mr.</option>
+            <option>Mrs.</option>
+            <option>Ms.</option>
+            <option>Dr.</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="p2_firstName">First name</label>
+          <input type="text" id="p2_firstName" />
+        </div>
+        <div class="field">
+          <label for="p2_surname">Surname</label>
+          <input type="text" id="p2_surname" />
+        </div>
+        <div class="field">
+          <label for="p2_lastName">Last name</label>
+          <input type="text" id="p2_lastName" />
+        </div>
+        <div class="field">
+          <label for="p2_hasMiddleName">Do you have a middle name?</label>
+          <select id="p2_hasMiddleName" class="yesno" data-show="#p2_middleNameField">
+            <option>No</option>
+            <option>Yes</option>
+          </select>
+        </div>
+        <div class="field hidden" id="p2_middleNameField">
+          <label for="p2_middleName">Middle name</label>
+          <input type="text" id="p2_middleName" />
+        </div>
+        <div class="field">
+          <label for="p2_email">Email address <span class="req">*</span></label>
+          <input type="email" id="p2_email" required />
+        </div>
+        <div class="field">
+          <label for="p2_mobile">Mobile phone</label>
+          <input type="tel" id="p2_mobile" />
+        </div>
+        <div class="field">
+          <label for="p2_citizen">Australian citizen?</label>
+          <select id="p2_citizen">
+            <option>Yes</option>
+            <option>No</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="p2_license">Australian driving licence?</label>
+          <select id="p2_license">
+            <option>Yes</option>
+            <option>No</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="p2_marital">Marital status</label>
+          <select id="p2_marital">
+            <option>Single</option>
+            <option>Married</option>
+            <option>De facto</option>
+            <option>Divorced</option>
+            <option>Widowed</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="p2_dependants">Dependants?</label>
+          <select id="p2_dependants" class="yesno" data-show="#p2_dependantsCountField, #p2_dependantsAgesField">
+            <option>No</option>
+            <option>Yes</option>
+          </select>
+        </div>
+        <div class="field hidden" id="p2_dependantsCountField">
+          <label for="p2_dependantsCount">Number of dependants</label>
+          <input type="number" min="0" id="p2_dependantsCount" />
+        </div>
+        <div class="field hidden" id="p2_dependantsAgesField">
+          <label for="p2_dependantsAges">Dependants age(s)</label>
+          <input type="text" id="p2_dependantsAges" placeholder="e.g. 14, 9" />
+        </div>
+      </div>
+
+      <div class="subsection">Address</div>
+      <div class="grid2">
+        <div class="field" style="grid-column:1/-1;">
+          <label for="a2_residentialAddress">Residential address</label>
+          <input type="text" id="a2_residentialAddress" />
+        </div>
+        <div class="field">
+          <label for="a2_residentialStatus">Residential status</label>
+          <select id="a2_residentialStatus">
+            <option>Owned outright</option>
+            <option>Mortgaged</option>
+            <option>Renting</option>
+            <option>Living with family</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="a2_addressStartDate">Address start date</label>
+          <input type="date" id="a2_addressStartDate" />
+        </div>
+        <div class="field">
+          <label for="a2_postalSame">Postal same as residential?</label>
+          <select id="a2_postalSame" class="yesno" data-show-inverse="#a2_postalAddressField">
+            <option>Yes</option>
+            <option>No</option>
+          </select>
+        </div>
+        <div class="field hidden" id="a2_postalAddressField">
+          <label for="a2_postalAddress">Postal address</label>
+          <input type="text" id="a2_postalAddress" />
+        </div>
+        <div class="field" style="grid-column:1/-1;">
+          <label for="a2_previousAddress">Previous residential address <span class="opt">(optional)</span></label>
+          <input type="text" id="a2_previousAddress" />
+        </div>
+        <div class="field">
+          <label for="a2_previousAddressStartDate">Previous address start date</label>
+          <input type="date" id="a2_previousAddressStartDate" />
+        </div>
+        <div class="field">
+          <label for="a2_previousAddressStopDate">Previous address stop date</label>
+          <input type="date" id="a2_previousAddressStopDate" />
+        </div>
+        <div class="field">
+          <label for="a2_afterSettlementKnown">After-settlement address known?</label>
+          <select id="a2_afterSettlementKnown" class="yesno" data-show="#a2_afterSettlementAddressField">
+            <option>No</option>
+            <option>Yes</option>
+          </select>
+        </div>
+        <div class="field hidden" id="a2_afterSettlementAddressField">
+          <label for="a2_afterSettlementAddress">After-settlement address</label>
+          <input type="text" id="a2_afterSettlementAddress" />
+        </div>
+      </div>
+
+      <div class="subsection">Employment &amp; income</div>
+      <div class="grid2">
+        <div class="field">
+          <label for="e2_currentlyEmployed">Currently employed?</label>
+          <select id="e2_currentlyEmployed">
+            <option>Yes</option>
+            <option>No</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="e2_employmentType">Current employment type</label>
+          <select id="e2_employmentType">
+            <option>PAYG</option>
+            <option>Self-employed</option>
+            <option>Contractor</option>
+            <option>Not employed</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="e2_secondJob">Second job?</label>
+          <select id="e2_secondJob">
+            <option>No</option>
+            <option>Yes</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="subsection hidden" id="e2_currentJobHeading">Employment & Income (PAYG)</div>
+      <div id="e2_currentJobFields" class="grid2 hidden">
+        <div class="field" style="grid-column:1/-1;">
+          <label for="e2_employerName">Employer's business name</label>
+          <input type="text" id="e2_employerName" />
+        </div>
+        <div class="field">
+          <label for="e2_employmentStatus">Current employment status</label>
+          <select id="e2_employmentStatus">
+            <option>Full Time</option>
+            <option>Part Time</option>
+            <option>Casual</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="e2_employmentStartDate">Employment start date</label>
+          <input type="date" id="e2_employmentStartDate" />
+        </div>
+        <div class="field">
+          <label for="e2_occupation">Occupation</label>
+          <input type="text" id="e2_occupation" />
+        </div>
+        <div class="field">
+          <label for="e2_incomeFrequency">Income frequency</label>
+          <select id="e2_incomeFrequency">
+            <option>Weekly</option>
+            <option>Fortnightly</option>
+            <option>Monthly</option>
+            <option>Annually</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="e2_grossIncome">Pre-tax income (gross)</label>
+          <input type="number" id="e2_grossIncome" min="0" />
+        </div>
+        <div class="field" style="grid-column:1/-1;">
+          <label for="e2_employerAddress">Employer's address</label>
+          <input type="text" id="e2_employerAddress" />
+        </div>
+        <div class="field">
+          <label for="e2_employerContactName">Employer contact name</label>
+          <input type="text" id="e2_employerContactName" />
+        </div>
+        <div class="field">
+          <label for="e2_employerNumber">Employer number</label>
+          <input type="tel" id="e2_employerNumber" />
+        </div>
+      </div>
+
+      <div class="subsection hidden" id="e2_selfEmployedHeading">Self Employed</div>
+      <div id="e2_selfEmployedFields" class="grid2 hidden">
+        <div class="field">
+          <label for="se2_businessName">Business name</label>
+          <input type="text" id="se2_businessName" />
+        </div>
+        <div class="field">
+          <label for="se2_occupation">Occupation</label>
+          <input type="text" id="se2_occupation" />
+        </div>
+        <div class="field">
+          <label for="se2_companyType">Company type</label>
+          <select id="se2_companyType">
+            <option>Sole Trader</option>
+            <option>Partnership</option>
+            <option>Company</option>
+            <option>Trust</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="se2_businessStartDate">Business start date</label>
+          <input type="date" id="se2_businessStartDate" />
+        </div>
+        <div class="field">
+          <label for="se2_currentEmploymentStatus">Current employment status</label>
+          <select id="se2_currentEmploymentStatus">
+            <option>Full Time</option>
+            <option>Part Time</option>
+          </select>
+        </div>
+        <div class="field" style="grid-column:1/-1;">
+          <label for="se2_natureOfBusiness">Nature of business</label>
+          <input type="text" id="se2_natureOfBusiness" />
+        </div>
+        <div class="field">
+          <label for="se2_abnAcn">ABN/ACN</label>
+          <input type="text" id="se2_abnAcn" />
+        </div>
+      </div>
+
+      <div class="subsection">Additional income</div>
+      <div class="grid2">
+        <div class="field">
+          <label for="ai2_fromEmployment">Additional income from employment?</label>
+          <select id="ai2_fromEmployment" class="yesno" data-show="#ai2_sourcesField">
+            <option>No</option>
+            <option>Yes</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="ai2_fromGovernment">Additional income from government?</label>
+          <select id="ai2_fromGovernment">
+            <option>No</option>
+            <option>Yes</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="ai2_fromInvestments">Additional income from investments?</label>
+          <select id="ai2_fromInvestments">
+            <option>No</option>
+            <option>Yes</option>
+          </select>
+        </div>
+      </div>
+      <div class="field hidden" id="ai2_sourcesField">
+        <label>Additional income source(s)</label>
+        <div class="checks" id="ai2_sourceChecks">
+          <label class="check"><input type="checkbox" value="Regular Overtime" /> Regular Overtime</label>
+          <label class="check"><input type="checkbox" value="Bonus" /> Bonus</label>
+          <label class="check"><input type="checkbox" value="Commission" /> Commission</label>
+          <label class="check"><input type="checkbox" value="Work Allowance" /> Work Allowance</label>
+          <label class="check"><input type="checkbox" value="Workers Compensation" /> Workers Compensation</label>
+          <label class="check"><input type="checkbox" value="Superannuation" /> Superannuation</label>
+        </div>
+        <div id="ai2_sourceDetails"></div>
+      </div>
+    </div>
+
     <div class="section-title">Real estate assets</div>
     <div class="grid2">
       <div class="field">
@@ -347,6 +648,14 @@
       <div class="field">
         <label for="reh_estimatedValue">Estimated value</label>
         <input type="number" id="reh_estimatedValue" min="0" />
+      </div>
+      <div class="field owner-field hidden">
+        <label for="reh_owner">Who owns this?</label>
+        <select id="reh_owner">
+          <option>Applicant 1</option>
+          <option>Applicant 2</option>
+          <option>Joint</option>
+        </select>
       </div>
       <div class="field">
         <label for="reh_lender">Lender</label>
@@ -463,11 +772,11 @@
     <div class="section-title">Required documents</div>
     <div class="grid2">
       <div class="field">
-        <label>Valid Driver's Licence</label>
+        <label>Valid Driver's Licence <span class="req">*</span></label>
         <div id="fg_driversLicence"></div>
       </div>
       <div class="field">
-        <label>Valid Passport</label>
+        <label>Valid Passport <span class="req">*</span></label>
         <div id="fg_passport"></div>
       </div>
       <div class="field">
@@ -516,6 +825,9 @@
         <input type="text" data-field="address" />
       </div>
       <div class="field"><label>Estimated value</label><input type="number" min="0" data-field="estimatedValue" /></div>
+      <div class="field owner-field hidden"><label>Who owns this?</label>
+        <select data-field="owner"><option>Applicant 1</option><option>Applicant 2</option><option>Joint</option></select>
+      </div>
       <div class="field"><label>Rent income</label><input type="number" min="0" data-field="rentIncome" /></div>
       <div class="field"><label>Is financed?</label>
         <select class="yesno" data-field="isFinanced">
@@ -548,6 +860,9 @@
     <div class="grid2">
       <div class="field"><label>Savings amount</label><input type="number" min="0" data-field="savingsAmount" /></div>
       <div class="field"><label>Financial institution</label><input type="text" data-field="financialInstitution" /></div>
+      <div class="field owner-field hidden"><label>Who owns this?</label>
+        <select data-field="owner"><option>Applicant 1</option><option>Applicant 2</option><option>Joint</option></select>
+      </div>
     </div>
   </div>
 </template>
@@ -560,6 +875,9 @@
       <div class="field"><label>Monthly repayment amount</label><input type="number" min="0" data-field="monthlyRepayment" /></div>
       <div class="field"><label>Amount owing</label><input type="number" min="0" data-field="amountOwing" /></div>
       <div class="field"><label>Original loan amount</label><input type="number" min="0" data-field="originalLoanAmount" /></div>
+      <div class="field owner-field hidden"><label>Who owns this?</label>
+        <select data-field="owner"><option>Applicant 1</option><option>Applicant 2</option><option>Joint</option></select>
+      </div>
       <div class="field"><label>Interest rate known?</label>
         <select class="yesno" data-field="interestRateKnown" data-show-sibling=".interestRateField">
           <option>No</option><option>Yes</option>
@@ -578,6 +896,9 @@
       <div class="field"><label>Monthly repayment amount</label><input type="number" min="0" data-field="monthlyRepayment" /></div>
       <div class="field"><label>Credit limit</label><input type="number" min="0" data-field="creditLimit" /></div>
       <div class="field"><label>Amount owing</label><input type="number" min="0" data-field="amountOwing" /></div>
+      <div class="field owner-field hidden"><label>Who owns this?</label>
+        <select data-field="owner"><option>Applicant 1</option><option>Applicant 2</option><option>Joint</option></select>
+      </div>
       <div class="field"><label>Interest rate known?</label>
         <select class="yesno" data-field="interestRateKnown" data-show-sibling=".interestRateField">
           <option>No</option><option>Yes</option>
@@ -670,7 +991,10 @@ function setupFileGroup(fieldName, maxCount, itemLabel) {
   }
 
   addSlot();
-  return { reset: () => { container.innerHTML = ''; addSlot(); } };
+  return {
+    reset: () => { container.innerHTML = ''; addSlot(); },
+    hasFile: () => Array.from(container.querySelectorAll('input[type=file]')).some(i => i.files.length > 0),
+  };
 }
 
 const fileGroups = {
@@ -705,6 +1029,20 @@ function wireYesNoToggles(root) {
 }
 wireYesNoToggles(document);
 
+// --- second applicant: shows/hides applicant-2 fields and "who owns this?"
+// selectors on shared assets/liabilities (existing home, investment
+// properties, savings, loans, credit cards, other asset details).
+function isJointApplication() {
+  return val('applicants') === 'Me and someone else';
+}
+function syncOwnerVisibility() {
+  const joint = isJointApplication();
+  document.getElementById('secondApplicantSection').classList.toggle('hidden', !joint);
+  document.querySelectorAll('.owner-field').forEach(el => el.classList.toggle('hidden', !joint));
+}
+document.getElementById('applicants').addEventListener('change', syncOwnerVisibility);
+syncOwnerVisibility();
+
 // --- repeatable groups ---------------------------------------------------
 function setupRepeatable(containerId, addBtnId, templateId) {
   const container = document.getElementById(containerId);
@@ -716,6 +1054,7 @@ function setupRepeatable(containerId, addBtnId, templateId) {
     const item = container.lastElementChild;
     item.querySelector('.remove-item').addEventListener('click', () => item.remove());
     wireYesNoToggles(item);
+    syncOwnerVisibility();
     return item;
   }
 
@@ -753,20 +1092,30 @@ document.getElementById('liabilityChecks').addEventListener('change', () => {
 });
 
 // --- employment type: PAYG vs Self Employed --------------------------------
-function updateEmploymentVisibility() {
-  const employed = val('e_currentlyEmployed') === 'Yes';
-  const type = val('e_employmentType');
-  const isPayg = employed && (type === 'PAYG' || type === 'Contractor');
-  const isSelfEmployed = employed && type === 'Self-employed';
+// Factory so applicant 1 (e_/se_) and applicant 2 (e2_/se2_) share identical
+// show/hide behavior without duplicating the logic.
+function makeEmploymentVisibility(prefix) {
+  return function updateEmploymentVisibility() {
+    const employed = val(prefix + 'currentlyEmployed') === 'Yes';
+    const type = val(prefix + 'employmentType');
+    const isPayg = employed && (type === 'PAYG' || type === 'Contractor');
+    const isSelfEmployed = employed && type === 'Self-employed';
 
-  document.getElementById('e_currentJobHeading').classList.toggle('hidden', !isPayg);
-  document.getElementById('e_currentJobFields').classList.toggle('hidden', !isPayg);
-  document.getElementById('e_selfEmployedHeading').classList.toggle('hidden', !isSelfEmployed);
-  document.getElementById('e_selfEmployedFields').classList.toggle('hidden', !isSelfEmployed);
+    document.getElementById(prefix + 'currentJobHeading').classList.toggle('hidden', !isPayg);
+    document.getElementById(prefix + 'currentJobFields').classList.toggle('hidden', !isPayg);
+    document.getElementById(prefix + 'selfEmployedHeading').classList.toggle('hidden', !isSelfEmployed);
+    document.getElementById(prefix + 'selfEmployedFields').classList.toggle('hidden', !isSelfEmployed);
+  };
 }
-document.getElementById('e_currentlyEmployed').addEventListener('change', updateEmploymentVisibility);
-document.getElementById('e_employmentType').addEventListener('change', updateEmploymentVisibility);
-updateEmploymentVisibility();
+const updateEmploymentVisibility1 = makeEmploymentVisibility('e_');
+document.getElementById('e_currentlyEmployed').addEventListener('change', updateEmploymentVisibility1);
+document.getElementById('e_employmentType').addEventListener('change', updateEmploymentVisibility1);
+updateEmploymentVisibility1();
+
+const updateEmploymentVisibility2 = makeEmploymentVisibility('e2_');
+document.getElementById('e2_currentlyEmployed').addEventListener('change', updateEmploymentVisibility2);
+document.getElementById('e2_employmentType').addEventListener('change', updateEmploymentVisibility2);
+updateEmploymentVisibility2();
 
 // --- asset detail blocks (description + value per owned asset type) --------
 const ASSET_TYPES_WITH_OWN_UI = ['Savings', 'No Assets'];
@@ -789,9 +1138,18 @@ document.getElementById('assetChecks').addEventListener('change', () => {
         <label>Estimated value</label>
         <input type="number" min="0" data-asset="${type}" data-field="estimatedValue" value="${saved.estimatedValue || ''}" />
       </div>
+      <div class="field owner-field hidden">
+        <label>Who owns this?</label>
+        <select data-asset="${type}" data-field="owner">
+          <option${saved.owner === 'Applicant 1' || !saved.owner ? ' selected' : ''}>Applicant 1</option>
+          <option${saved.owner === 'Applicant 2' ? ' selected' : ''}>Applicant 2</option>
+          <option${saved.owner === 'Joint' ? ' selected' : ''}>Joint</option>
+        </select>
+      </div>
     `;
     detailsEl.appendChild(block);
   });
+  syncOwnerVisibility();
 });
 
 function collectAssetDetails() {
@@ -846,38 +1204,41 @@ function collectExpenseDetails() {
 }
 
 // --- additional income source detail blocks --------------------------------
-const additionalIncomeDetails = {};
-document.getElementById('ai_sourceChecks').addEventListener('change', () => {
-  const sources = checkedValues('ai_sourceChecks');
-  const detailsEl = document.getElementById('ai_sourceDetails');
-  detailsEl.innerHTML = '';
-  sources.forEach(source => {
-    const saved = additionalIncomeDetails[source] || {};
-    const block = document.createElement('div');
-    block.className = 'grid2 income-source-detail';
-    block.innerHTML = `
-      <div class="field" style="grid-column:1/-1;"><label>${source} — frequency &amp; amount</label></div>
-      <div class="field">
-        <label>Frequency</label>
-        <select data-source="${source}" data-field="frequency">
-          <option${saved.frequency === 'Weekly' ? ' selected' : ''}>Weekly</option>
-          <option${saved.frequency === 'Fortnightly' ? ' selected' : ''}>Fortnightly</option>
-          <option${!saved.frequency || saved.frequency === 'Monthly' ? ' selected' : ''}>Monthly</option>
-          <option${saved.frequency === 'Annually' ? ' selected' : ''}>Annually</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Monthly amount</label>
-        <input type="number" min="0" data-source="${source}" data-field="monthlyAmount" value="${saved.monthlyAmount || ''}" />
-      </div>
-    `;
-    detailsEl.appendChild(block);
+// Factory so applicant 1 (ai_) and applicant 2 (ai2_) share identical
+// checkbox -> detail-block behavior without duplicating the logic.
+function wireIncomeSourceChecks(checksId, detailsContainerId, store) {
+  document.getElementById(checksId).addEventListener('change', () => {
+    const sources = checkedValues(checksId);
+    const detailsEl = document.getElementById(detailsContainerId);
+    detailsEl.innerHTML = '';
+    sources.forEach(source => {
+      const saved = store[source] || {};
+      const block = document.createElement('div');
+      block.className = 'grid2 income-source-detail';
+      block.innerHTML = `
+        <div class="field" style="grid-column:1/-1;"><label>${source} — frequency &amp; amount</label></div>
+        <div class="field">
+          <label>Frequency</label>
+          <select data-source="${source}" data-field="frequency">
+            <option${saved.frequency === 'Weekly' ? ' selected' : ''}>Weekly</option>
+            <option${saved.frequency === 'Fortnightly' ? ' selected' : ''}>Fortnightly</option>
+            <option${!saved.frequency || saved.frequency === 'Monthly' ? ' selected' : ''}>Monthly</option>
+            <option${saved.frequency === 'Annually' ? ' selected' : ''}>Annually</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Monthly amount</label>
+          <input type="number" min="0" data-source="${source}" data-field="monthlyAmount" value="${saved.monthlyAmount || ''}" />
+        </div>
+      `;
+      detailsEl.appendChild(block);
+    });
   });
-});
+}
 
-function collectAdditionalIncomeDetails() {
+function collectSourceDetails(detailsContainerId) {
   const result = {};
-  document.querySelectorAll('#ai_sourceDetails [data-source]').forEach(el => {
+  document.querySelectorAll(`#${detailsContainerId} [data-source]`).forEach(el => {
     const source = el.dataset.source;
     result[source] = result[source] || {};
     result[source][el.dataset.field] = el.value;
@@ -885,16 +1246,82 @@ function collectAdditionalIncomeDetails() {
   return result;
 }
 
+const additionalIncomeDetails = {};
+const additionalIncomeDetails2 = {};
+wireIncomeSourceChecks('ai_sourceChecks', 'ai_sourceDetails', additionalIncomeDetails);
+wireIncomeSourceChecks('ai2_sourceChecks', 'ai2_sourceDetails', additionalIncomeDetails2);
+
 // --- build submission payload ---------------------------------------------
 function val(id) { const el = document.getElementById(id); return el ? el.value : ''; }
 
 function buildClientInfo() {
   return {
     applicants: val('applicants'),
+    secondApplicant: isJointApplication() ? {
+      personal: {
+        title: val('p2_title'),
+        firstName: val('p2_firstName'),
+        surname: val('p2_surname'),
+        lastName: val('p2_lastName'),
+        hasMiddleName: val('p2_hasMiddleName'),
+        middleName: val('p2_middleName'),
+        email: val('p2_email'),
+        mobilePhone: val('p2_mobile'),
+        australianCitizen: val('p2_citizen'),
+        drivingLicense: val('p2_license'),
+        maritalStatus: val('p2_marital'),
+        dependants: val('p2_dependants'),
+        dependantsCount: val('p2_dependantsCount'),
+        dependantsAges: val('p2_dependantsAges'),
+      },
+      address: {
+        residentialAddress: val('a2_residentialAddress'),
+        residentialStatus: val('a2_residentialStatus'),
+        addressStartDate: val('a2_addressStartDate'),
+        postalSameAsResidential: val('a2_postalSame'),
+        postalAddress: val('a2_postalAddress'),
+        previousAddress: val('a2_previousAddress'),
+        previousAddressStartDate: val('a2_previousAddressStartDate'),
+        previousAddressStopDate: val('a2_previousAddressStopDate'),
+        afterSettlementAddressKnown: val('a2_afterSettlementKnown'),
+        afterSettlementAddress: val('a2_afterSettlementAddress'),
+      },
+      employment: {
+        currentlyEmployed: val('e2_currentlyEmployed'),
+        employmentType: val('e2_employmentType'),
+        secondJob: val('e2_secondJob'),
+        employerName: val('e2_employerName'),
+        employmentStatus: val('e2_employmentStatus'),
+        employmentStartDate: val('e2_employmentStartDate'),
+        occupation: val('e2_occupation'),
+        incomeFrequency: val('e2_incomeFrequency'),
+        grossIncome: val('e2_grossIncome'),
+        employerAddress: val('e2_employerAddress'),
+        employerContactName: val('e2_employerContactName'),
+        employerNumber: val('e2_employerNumber'),
+        selfEmployed: {
+          businessName: val('se2_businessName'),
+          occupation: val('se2_occupation'),
+          companyType: val('se2_companyType'),
+          businessStartDate: val('se2_businessStartDate'),
+          currentEmploymentStatus: val('se2_currentEmploymentStatus'),
+          natureOfBusiness: val('se2_natureOfBusiness'),
+          abnAcn: val('se2_abnAcn'),
+        },
+      },
+      additionalIncome: {
+        fromEmployment: val('ai2_fromEmployment'),
+        sources: checkedValues('ai2_sourceChecks'),
+        sourceDetails: collectSourceDetails('ai2_sourceDetails'),
+        fromGovernment: val('ai2_fromGovernment'),
+        fromInvestments: val('ai2_fromInvestments'),
+      },
+    } : null,
     personal: {
       title: val('p_title'),
       firstName: val('p_firstName'),
       surname: val('p_surname'),
+      lastName: val('p_lastName'),
       hasMiddleName: val('p_hasMiddleName'),
       middleName: val('p_middleName'),
       email: val('p_email'),
@@ -944,7 +1371,7 @@ function buildClientInfo() {
     additionalIncome: {
       fromEmployment: val('ai_fromEmployment'),
       sources: checkedValues('ai_sourceChecks'),
-      sourceDetails: collectAdditionalIncomeDetails(),
+      sourceDetails: collectSourceDetails('ai_sourceDetails'),
       fromGovernment: val('ai_fromGovernment'),
       fromInvestments: val('ai_fromInvestments'),
     },
@@ -952,6 +1379,7 @@ function buildClientInfo() {
       hasInvestmentProperties: val('re_hasInvestment'),
       existingHome: {
         estimatedValue: val('reh_estimatedValue'),
+        owner: val('reh_owner'),
         lender: val('reh_lender'),
         amountOwing: val('reh_amountOwing'),
         originalLoanAmount: val('reh_originalLoanAmount'),
@@ -992,6 +1420,9 @@ form.addEventListener('submit', async (e) => {
   submitBtn.textContent = 'Submitting...';
 
   try {
+    if (!fileGroups.driversLicence.hasFile()) throw new Error("Please upload a valid Driver's Licence.");
+    if (!fileGroups.passport.hasFile()) throw new Error('Please upload a valid Passport.');
+
     const fd = new FormData(form);
     fd.append('clientInfo', JSON.stringify(buildClientInfo()));
 
@@ -1009,10 +1440,13 @@ form.addEventListener('submit', async (e) => {
     Object.values(fileGroups).forEach(g => g.reset());
     document.querySelectorAll('.repeat-item').forEach(el => el.remove());
     document.getElementById('ai_sourceDetails').innerHTML = '';
+    document.getElementById('ai2_sourceDetails').innerHTML = '';
     document.getElementById('assetDetails').innerHTML = '';
     document.getElementById('expenseDetails').innerHTML = '';
     wireYesNoToggles(document);
-    updateEmploymentVisibility();
+    updateEmploymentVisibility1();
+    updateEmploymentVisibility2();
+    syncOwnerVisibility();
     document.getElementById('savingsBlock').classList.add('hidden');
     document.getElementById('personalLoansBlock').classList.add('hidden');
     document.getElementById('creditCardsBlock').classList.add('hidden');

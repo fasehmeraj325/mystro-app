@@ -1,5 +1,5 @@
 {
-  "name": "mystro-lite",
+  "name": "docklio",
   "version": "1.0.0",
   "description": "Self-hosted client onboarding tool: intake forms, document uploads, and a review dashboard.",
   "main": "server.js",
@@ -14,10 +14,10 @@
     "express": "^4.19.2",
     "express-rate-limit": "^8.6.1",
     "express-session": "^1.19.0",
+    "helmet": "^8.3.0",
     "multer": "^2.0.0",
     "nodemailer": "^9.0.3",
     "pdfkit": "^0.19.1",
-    "pg": "^8.22.0",
-    "uuid": "^9.0.1"
+    "pg": "^8.22.0"
   }
 }

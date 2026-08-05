@@ -1,4 +1,4 @@
-# Mystro Lite
+# Docklio
 
 A multi-tenant client onboarding platform: any number of companies can create their own account, each with an isolated dashboard, their own client-facing application link, and their own submissions. The intake form is a full financial fact-find — personal details, address, employment & income, additional income, real estate assets, other assets, liabilities, and document uploads. Companies review submissions, download a PDF of the full client form, download individual documents, track status, and email clients their application link directly from the dashboard.
 

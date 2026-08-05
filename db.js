@@ -68,6 +68,16 @@ async function initSchema() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_resets (
+      id UUID PRIMARY KEY,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
   // Session store table for connect-pg-simple.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS session (
@@ -191,6 +201,39 @@ async function incrementVerificationAttempts(id) {
   await pool.query("UPDATE email_verifications SET attempts = attempts + 1 WHERE id = $1", [id]);
 }
 
+// --- password resets -----------------------------------------------------
+// token_hash is a SHA-256 digest of a high-entropy random token (not a bcrypt
+// hash) so a reset link can be looked up directly by its hash — the token
+// itself, not a user id, is the only thing the requester has at that point.
+
+async function createPasswordReset(r) {
+  await pool.query(
+    `INSERT INTO password_resets (id, user_id, token_hash, expires_at)
+     VALUES ($1,$2,$3,$4)`,
+    [r.id, r.userId, r.tokenHash, r.expiresAt]
+  );
+}
+
+async function getPasswordResetByTokenHash(tokenHash) {
+  const { rows } = await pool.query(
+    "SELECT * FROM password_resets WHERE token_hash = $1",
+    [tokenHash]
+  );
+  if (!rows[0]) return null;
+  const row = rows[0];
+  return {
+    id: row.id,
+    userId: row.user_id,
+    expiresAt: row.expires_at,
+    used: row.used,
+    createdAt: row.created_at,
+  };
+}
+
+async function markPasswordResetUsed(id) {
+  await pool.query("UPDATE password_resets SET used = true WHERE id = $1", [id]);
+}
+
 // --- submissions (tenant-scoped) ----------------------------------------
 // companyId is a required first argument on every function below so a
 // route handler that forgets to scope a query fails loudly instead of
@@ -303,6 +346,10 @@ module.exports = {
   createVerification,
   getLatestVerification,
   incrementVerificationAttempts,
+  // password resets
+  createPasswordReset,
+  getPasswordResetByTokenHash,
+  markPasswordResetUsed,
   // submissions
   listSubmissions,
   getSubmission,

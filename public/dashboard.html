@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Dashboard — Mystro Lite</title>
+<title>Dashboard — Docklio</title>
 <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
 
 <div class="topbar">
-  <div class="brand"><span class="dot"></span> Mystro Lite</div>
+  <div class="brand"><span class="dot"></span> Docklio</div>
   <nav>
     <a href="dashboard.html" class="active">Dashboard</a>
     <a href="#" id="logoutLink">Log out</a>
@@ -17,10 +17,15 @@
 </div>
 
 <div class="wrap wide">
-  <h1>Submissions</h1>
-  <p class="subtitle">Every client application, all in one place.</p>
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+    <div>
+      <h1>Submissions</h1>
+      <p class="subtitle" style="margin-bottom:0;">Every client application, all in one place.</p>
+    </div>
+    <a id="previewFormBtn" href="#" target="_blank" class="pdf-btn">👁 Preview client form</a>
+  </div>
 
-  <div class="stat-row" id="stats"></div>
+  <div class="stat-row" id="stats" style="margin-top:24px;"></div>
 
   <div class="card invite-card">
     <div class="section-title" style="margin-top:0;">Send application link to a client</div>
@@ -77,6 +82,24 @@
 
     <div class="section-title">Status</div>
     <div class="status-row" id="statusRow"></div>
+
+    <div class="danger-zone">
+      <button type="button" id="deleteBtn" class="danger">Delete submission</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="confirmOverlay">
+  <div class="modal" style="max-width:420px;">
+    <h2 style="margin:0 0 10px;font-size:18px;">Delete submission?</h2>
+    <p style="color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 24px;">
+      This permanently deletes this submission and all its uploaded documents. This cannot be undone.
+    </p>
+    <div id="deleteErrorMsg" class="msg err hidden"></div>
+    <div class="actions" style="margin-top:0;justify-content:flex-end;">
+      <button type="button" class="secondary" id="cancelDeleteBtn" style="margin-bottom:0;">Cancel</button>
+      <button type="button" class="danger" id="confirmDeleteBtn">Delete submission</button>
+    </div>
   </div>
 </div>
 
@@ -94,10 +117,23 @@ function fmtMoney(v) {
   return isNaN(n) ? String(v) : '$' + n.toLocaleString();
 }
 
+// Client-submitted values (name, occupation, employer, etc.) come from the
+// public, unauthenticated intake form and are rendered here via innerHTML —
+// always escape before interpolating, so a malicious submission can't run
+// script in a logged-in company's dashboard session.
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function fmtVal(v) {
   if (v === undefined || v === null || v === '') return '—';
-  if (Array.isArray(v)) return v.length ? v.join(', ') : '—';
-  return String(v);
+  if (Array.isArray(v)) return v.length ? escapeHtml(v.join(', ')) : '—';
+  return escapeHtml(v);
 }
 
 function badgeClass(status) {
@@ -133,9 +169,9 @@ function renderTable(list) {
     for (const s of list) {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>${s.fullName}</td>
-        <td>${s.email || '—'}</td>
-        <td>${s.phone || '—'}</td>
+        <td>${escapeHtml(s.fullName)}</td>
+        <td>${s.email ? escapeHtml(s.email) : '—'}</td>
+        <td>${s.phone ? escapeHtml(s.phone) : '—'}</td>
         <td>${s.fileCount} file${s.fileCount === 1 ? '' : 's'}</td>
         <td><span class="badge ${badgeClass(s.status)}">${s.status}</span></td>
         <td>${fmtDate(s.submittedAt)}</td>
@@ -202,9 +238,14 @@ function renderSections(s) {
 
   let html = '';
 
+  const secondApplicantName = info.secondApplicant && info.secondApplicant.personal
+    ? [info.secondApplicant.personal.firstName, info.secondApplicant.personal.surname].filter(Boolean).join(' ')
+    : '';
   html += sectionBlock('Contact & Applicants', detailGrid([
     ['Phone', s.phone],
     ['Applicants', info.applicants],
+    ['Second applicant', secondApplicantName || undefined],
+    ['Second applicant email', info.secondApplicant && info.secondApplicant.personal ? info.secondApplicant.personal.email : undefined],
     ['Submitted', fmtDate(s.submittedAt)],
     ['Last updated', fmtDate(s.updatedAt)],
   ]));
@@ -212,6 +253,7 @@ function renderSections(s) {
   if (Object.keys(p).length) {
     html += sectionBlock('Personal Details', detailGrid([
       ['Title', p.title], ['First name', p.firstName], ['Surname', p.surname],
+      ['Last name', p.lastName],
       ['Middle name', p.hasMiddleName === 'Yes' ? p.middleName : '—'],
       ['Australian citizen', p.australianCitizen], ['Driving licence', p.drivingLicense],
       ['Marital status', p.maritalStatus], ['Dependants', p.dependants],
@@ -268,10 +310,74 @@ function renderSections(s) {
     html += sectionBlock('Additional Income', inner);
   }
 
+  const sa = info.secondApplicant;
+  if (sa && (Object.keys(sa.personal || {}).length || Object.keys(sa.address || {}).length)) {
+    const sp = sa.personal || {};
+    const saAddr = sa.address || {};
+    const se2 = sa.employment || {};
+    const sai = sa.additionalIncome || {};
+
+    html += sectionBlock('Second Applicant — Personal Details', detailGrid([
+      ['Title', sp.title], ['First name', sp.firstName], ['Surname', sp.surname],
+      ['Last name', sp.lastName],
+      ['Middle name', sp.hasMiddleName === 'Yes' ? sp.middleName : '—'],
+      ['Email address', sp.email], ['Mobile phone', sp.mobilePhone],
+      ['Australian citizen', sp.australianCitizen], ['Driving licence', sp.drivingLicense],
+      ['Marital status', sp.maritalStatus], ['Dependants', sp.dependants],
+      ['Number of dependants', sp.dependantsCount], ['Dependants age(s)', sp.dependantsAges],
+    ]));
+
+    html += sectionBlock('Second Applicant — Address', detailGrid([
+      ['Residential address', saAddr.residentialAddress], ['Residential status', saAddr.residentialStatus],
+      ['Address start date', saAddr.addressStartDate],
+      ['Postal address', saAddr.postalSameAsResidential === 'Yes' ? 'Same as residential' : saAddr.postalAddress],
+      ['Previous address', saAddr.previousAddress],
+      ['Previous address start', saAddr.previousAddressStartDate],
+      ['Previous address stop', saAddr.previousAddressStopDate],
+      ['After-settlement address', saAddr.afterSettlementAddressKnown === 'Yes' ? saAddr.afterSettlementAddress : '—'],
+    ]));
+
+    let empInner = detailGrid([
+      ['Currently employed', se2.currentlyEmployed], ['Employment type', se2.employmentType],
+      ['Second job', se2.secondJob], ['Employer', se2.employerName],
+      ['Employment status', se2.employmentStatus], ['Employment start date', se2.employmentStartDate],
+      ['Occupation', se2.occupation], ['Income frequency', se2.incomeFrequency],
+      ['Pre-tax income (gross)', se2.grossIncome ? fmtMoney(se2.grossIncome) : undefined],
+      ['Employer address', se2.employerAddress], ['Employer contact', se2.employerContactName],
+      ['Employer number', se2.employerNumber],
+    ]);
+    const sse = se2.selfEmployed || {};
+    if (se2.employmentType === 'Self-employed' && Object.keys(sse).length) {
+      empInner += subBlock('Self Employed', detailGrid([
+        ['Business name', sse.businessName], ['Occupation', sse.occupation],
+        ['Company type', sse.companyType], ['Business start date', sse.businessStartDate],
+        ['Current employment status', sse.currentEmploymentStatus],
+        ['Nature of business', sse.natureOfBusiness], ['ABN/ACN', sse.abnAcn],
+      ]));
+    }
+    html += sectionBlock('Second Applicant — Employment & Income', empInner);
+
+    if (Object.keys(sai).length) {
+      let saiInner = detailGrid([
+        ['From employment', sai.fromEmployment], ['Source(s)', sai.sources],
+        ['From government', sai.fromGovernment], ['From investments', sai.fromInvestments],
+      ]);
+      const saiDetails = sai.sourceDetails || {};
+      Object.keys(saiDetails).forEach(source => {
+        const d = saiDetails[source];
+        saiInner += subBlock(source, detailGrid([
+          ['Frequency', d.frequency], ['Monthly amount', fmtMoney(d.monthlyAmount)],
+        ]));
+      });
+      html += sectionBlock('Second Applicant — Additional Income', saiInner);
+    }
+  }
+
   if (Object.keys(re).length) {
     let inner = detailGrid([['Owns investment properties', re.hasInvestmentProperties]]);
     inner += subBlock('Existing home', detailGrid([
-      ['Estimated value', fmtMoney(reh.estimatedValue)], ['Lender', reh.lender],
+      ['Estimated value', fmtMoney(reh.estimatedValue)], ['Who owns this', reh.owner],
+      ['Lender', reh.lender],
       ['Amount owing', fmtMoney(reh.amountOwing)], ['Original loan amount', fmtMoney(reh.originalLoanAmount)],
       ['Interest rate', reh.interestRateKnown === 'Yes' ? (reh.interestRate ? reh.interestRate + '%' : undefined) : 'Unknown'],
       ['Fixed rate', reh.isFixed], ['Monthly repayment', fmtMoney(reh.monthlyRepayment)],
@@ -280,6 +386,7 @@ function renderSections(s) {
     (re.investmentProperties || []).forEach((prop, i) => {
       inner += subBlock(`Investment property ${i + 1}`, detailGrid([
         ['Address', prop.address], ['Estimated value', fmtMoney(prop.estimatedValue)],
+        ['Who owns this', prop.owner],
         ['Rent income', fmtMoney(prop.rentIncome)], ['Is financed', prop.isFinanced],
         ['Lender', prop.lender], ['Amount owing', fmtMoney(prop.amountOwing)],
         ['Original loan amount', fmtMoney(prop.originalLoanAmount)],
@@ -298,11 +405,13 @@ function renderSections(s) {
       const d = assetDetails[type];
       inner += subBlock(type, detailGrid([
         ['Description', d.description], ['Estimated value', fmtMoney(d.estimatedValue)],
+        ['Who owns this', d.owner],
       ]));
     });
     (assets.savingsAccounts || []).forEach((acc, i) => {
       inner += subBlock(`Savings account ${i + 1}`, detailGrid([
         ['Savings amount', fmtMoney(acc.savingsAmount)], ['Financial institution', acc.financialInstitution],
+        ['Who owns this', acc.owner],
       ]));
     });
     html += sectionBlock('Assets', inner);
@@ -312,14 +421,14 @@ function renderSections(s) {
     let inner = detailGrid([['Liability types', liabilities.types]]);
     (liabilities.personalLoans || []).forEach((l, i) => {
       inner += subBlock(`Personal loan ${i + 1}`, detailGrid([
-        ['Lender', l.lender], ['Monthly repayment', fmtMoney(l.monthlyRepayment)],
+        ['Lender', l.lender], ['Who owns this', l.owner], ['Monthly repayment', fmtMoney(l.monthlyRepayment)],
         ['Amount owing', fmtMoney(l.amountOwing)], ['Original loan amount', fmtMoney(l.originalLoanAmount)],
         ['Interest rate', l.interestRateKnown === 'Yes' ? (l.interestRate ? l.interestRate + '%' : undefined) : 'Unknown'],
       ]));
     });
     (liabilities.creditCards || []).forEach((c, i) => {
       inner += subBlock(`Credit card ${i + 1}`, detailGrid([
-        ['Lender', c.lender], ['Monthly repayment', fmtMoney(c.monthlyRepayment)],
+        ['Lender', c.lender], ['Who owns this', c.owner], ['Monthly repayment', fmtMoney(c.monthlyRepayment)],
         ['Credit limit', fmtMoney(c.creditLimit)], ['Amount owing', fmtMoney(c.amountOwing)],
         ['Interest rate', c.interestRateKnown === 'Yes' ? (c.interestRate ? c.interestRate + '%' : undefined) : 'Unknown'],
       ]));
@@ -369,8 +478,8 @@ async function openModal(id) {
         const sizeKb = Math.round(f.size / 1024);
         const heading = list.length > 1 ? `${f.label} (${i + 1})` : f.label;
         return `<div class="doc-block">
-          <div class="doc-heading">${heading}</div>
-          <div class="doc-meta">${f.originalName} · ${sizeKb} KB</div>
+          <div class="doc-heading">${escapeHtml(heading)}</div>
+          <div class="doc-meta">${escapeHtml(f.originalName)} · ${sizeKb} KB</div>
           <a class="doc-download" href="/api/submissions/${s.id}/files/${k}/${i}" target="_blank">Download ↓</a>
         </div>`;
       }).join('');
@@ -404,6 +513,38 @@ document.getElementById('closeModal').addEventListener('click', () => {
 });
 document.getElementById('overlay').addEventListener('click', (e) => {
   if (e.target.id === 'overlay') document.getElementById('overlay').classList.add('hidden');
+});
+
+document.getElementById('deleteBtn').addEventListener('click', () => {
+  document.getElementById('deleteErrorMsg').classList.add('hidden');
+  document.getElementById('confirmOverlay').classList.remove('hidden');
+});
+document.getElementById('cancelDeleteBtn').addEventListener('click', () => {
+  document.getElementById('confirmOverlay').classList.add('hidden');
+});
+document.getElementById('confirmOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'confirmOverlay') document.getElementById('confirmOverlay').classList.add('hidden');
+});
+
+document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('confirmDeleteBtn');
+  btn.disabled = true;
+  btn.textContent = 'Deleting...';
+
+  try {
+    const res = await fetch(`/api/submissions/${currentId}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Something went wrong deleting this submission.');
+    document.getElementById('confirmOverlay').classList.add('hidden');
+    document.getElementById('overlay').classList.add('hidden');
+    loadTable();
+  } catch (err) {
+    const errMsg = document.getElementById('deleteErrorMsg');
+    errMsg.textContent = err.message;
+    errMsg.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Delete submission';
+  }
 });
 
 const inviteForm = document.getElementById('inviteForm');
@@ -453,6 +594,7 @@ async function loadCompanyLink() {
   const linkEl = document.getElementById('applyLink');
   linkEl.href = company.applyUrl;
   linkEl.textContent = company.applyUrl;
+  document.getElementById('previewFormBtn').href = company.applyUrl;
 }
 
 document.getElementById('copyLinkBtn').addEventListener('click', () => {
