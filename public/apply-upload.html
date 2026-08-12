@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%234f46e5%27/%3E%3C/svg%3E" />
+<title>Upload Documents</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="dot"></span> <span id="brandName">Docklio</span></div>
+  <div class="step-pills">
+    <span class="step-pill">1 Details</span>
+    <span class="step-pill active">2 Documents</span>
+  </div>
+</div>
+
+<div class="progress-header" id="progressHeader">
+  <div class="progress-header-inner">
+    <div class="progress-label">
+      <span>Step 2 of 2 — Upload your documents</span>
+      <span class="progress-pct" id="docPct">0%</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="docFill" style="width:0%"></div></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div id="notFound" class="hidden">
+    <h1>Link not found</h1>
+    <p class="subtitle">This application link isn't valid or has expired. Please contact the company that sent it to you.</p>
+  </div>
+
+  <div id="doneState" class="hidden">
+    <h1>You're all set 🎉</h1>
+    <p class="subtitle">Thanks — your application has been submitted. We'll be in touch shortly.</p>
+  </div>
+
+  <div id="loadingState" class="loading-state">
+    <span class="spinner"></span> Loading your application…
+  </div>
+
+  <div id="uploadWrap" class="hidden">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+      <div>
+        <h1>Upload your documents</h1>
+        <p class="subtitle" id="uploadSubtitle">Based on your answers, here's what we need from you. Files upload as soon as you pick them.</p>
+      </div>
+      <a href="#" id="editLink" class="secondary" style="text-decoration:none; display:inline-block;">← Edit your details</a>
+    </div>
+
+    <div id="msg" class="msg hidden"></div>
+
+    <div id="docFieldsWrap" class="card"></div>
+
+    <div class="actions">
+      <button type="button" class="primary" id="finishBtn" disabled>Finish &amp; submit application</button>
+    </div>
+    <p class="hint" id="finishHint">Upload a Driver's Licence and Passport to finish.</p>
+  </div>
+</div>
+
+<script src="/progress.js"></script>
+<script>
+const PATH_MATCH = window.location.pathname.match(/^\/apply\/([^/]+)\/upload\/([^/]+)/);
+const COMPANY_SLUG = PATH_MATCH ? PATH_MATCH[1] : null;
+const SUBMISSION_ID = PATH_MATCH ? PATH_MATCH[2] : null;
+
+let currentData = null;
+
+function hideLoading() {
+  document.getElementById('loadingState').classList.add('hidden');
+}
+
+function showNotFound() {
+  hideLoading();
+  document.getElementById('uploadWrap').classList.add('hidden');
+  document.getElementById('progressHeader').classList.add('hidden');
+  document.getElementById('notFound').classList.remove('hidden');
+}
+
+function showDone() {
+  hideLoading();
+  document.getElementById('uploadWrap').classList.add('hidden');
+  document.getElementById('progressHeader').classList.add('hidden');
+  document.getElementById('doneState').classList.remove('hidden');
+}
+
+function showUploadWrap() {
+  hideLoading();
+  document.getElementById('uploadWrap').classList.remove('hidden');
+}
+
+function fmtSize(bytes) {
+  if (!bytes) return '';
+  const kb = bytes / 1024;
+  return kb < 1024 ? Math.round(kb) + ' KB' : (kb / 1024).toFixed(1) + ' MB';
+}
+
+function updateProgressUI(data) {
+  const { percent } = DocklioProgress.computeDocProgress(data.clientInfo, data.files);
+  document.getElementById('docFill').style.width = percent + '%';
+  document.getElementById('docPct').textContent = percent + '%';
+
+  const req = DocklioProgress.REQUIRED_FILE_FIELDS;
+  const requiredMet = req.every((name) => (data.files[name] || []).length > 0);
+  document.getElementById('finishBtn').disabled = !requiredMet;
+  document.getElementById('finishHint').classList.toggle('hidden', requiredMet);
+}
+
+function fieldSection(field) {
+  const section = document.createElement('div');
+  section.className = 'doc-field';
+  section.dataset.field = field.name;
+
+  const required = DocklioProgress.REQUIRED_FILE_FIELDS.includes(field.name);
+  section.innerHTML = `
+    <div class="doc-field-head">
+      <span class="doc-field-label">${field.label}${required ? ' <span class="req">*</span>' : ''}</span>
+    </div>
+    <div class="uploaded-list"></div>
+    <label class="file-drop upload-drop">
+      <input type="file" accept=".pdf,image/jpeg,image/png,image/heic,image/webp" />
+      <div class="fname" data-empty="Click to upload">Click to upload</div>
+    </label>
+  `;
+  return section;
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderUploadedItem(field, file, index) {
+  const row = document.createElement('div');
+  row.className = 'uploaded-item';
+  row.innerHTML = `
+    <span class="uploaded-check">✓</span>
+    <span class="uploaded-name">${escapeHtml(file.originalName)}</span>
+    <span class="uploaded-meta">${fmtSize(file.size)}</span>
+    <button type="button" class="remove-slot" title="Remove">&times;</button>
+  `;
+  row.querySelector('.remove-slot').addEventListener('click', () => removeFile(field, index));
+  return row;
+}
+
+async function removeFile(field, index) {
+  try {
+    const res = await fetch(
+      `/api/public/${encodeURIComponent(COMPANY_SLUG)}/submissions/${encodeURIComponent(SUBMISSION_ID)}/files/${encodeURIComponent(field)}/${index}`,
+      { method: 'DELETE' }
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Could not remove that file.');
+    currentData = data;
+    renderDocFields(data);
+    updateProgressUI(data);
+  } catch (err) {
+    showMsg(err.message, 'err');
+  }
+}
+
+async function uploadFile(field, file, section) {
+  const drop = section.querySelector('.upload-drop');
+  const fname = drop.querySelector('.fname');
+  fname.textContent = 'Uploading…';
+  drop.classList.add('uploading');
+
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch(
+      `/api/public/${encodeURIComponent(COMPANY_SLUG)}/submissions/${encodeURIComponent(SUBMISSION_ID)}/files/${encodeURIComponent(field)}`,
+      { method: 'POST', body: fd }
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload failed.');
+    currentData = data;
+    renderDocFields(data);
+    updateProgressUI(data);
+  } catch (err) {
+    fname.textContent = fname.dataset.empty;
+    drop.classList.remove('uploading');
+    showMsg(err.message, 'err');
+  }
+}
+
+function renderDocFields(data) {
+  const wrap = document.getElementById('docFieldsWrap');
+  const applicable = DocklioProgress.docApplicability(data.clientInfo);
+  wrap.innerHTML = '';
+
+  applicable.forEach((field) => {
+    const section = fieldSection(field);
+    const list = section.querySelector('.uploaded-list');
+    const uploaded = data.files[field.name] || [];
+    uploaded.forEach((f, i) => list.appendChild(renderUploadedItem(field.name, f, i)));
+
+    const atMax = uploaded.length >= field.maxCount;
+    const drop = section.querySelector('.upload-drop');
+    const input = drop.querySelector('input[type=file]');
+    if (atMax) {
+      drop.classList.add('hidden');
+    } else {
+      input.addEventListener('change', () => {
+        if (input.files.length) uploadFile(field.name, input.files[0], section);
+      });
+    }
+
+    wrap.appendChild(section);
+  });
+}
+
+function showMsg(text, type) {
+  const msg = document.getElementById('msg');
+  msg.className = 'msg ' + type;
+  msg.textContent = text;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function load() {
+  if (!COMPANY_SLUG || !SUBMISSION_ID) return showNotFound();
+  try {
+    const res = await fetch(`/api/public/${encodeURIComponent(COMPANY_SLUG)}/submissions/${encodeURIComponent(SUBMISSION_ID)}`);
+    if (!res.ok) return showNotFound();
+    const data = await res.json();
+    currentData = data;
+
+    document.getElementById('editLink').href = `/apply/${encodeURIComponent(COMPANY_SLUG)}?id=${encodeURIComponent(SUBMISSION_ID)}`;
+    document.getElementById('uploadSubtitle').textContent =
+      `Hi ${data.fullName.split(' ')[0] || 'there'} — based on your answers, here's what we need from you. Files upload as soon as you pick them.`;
+
+    if (data.finalized) return showDone();
+
+    renderDocFields(data);
+    updateProgressUI(data);
+    showUploadWrap();
+  } catch (e) {
+    showNotFound();
+  }
+}
+
+document.getElementById('finishBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('finishBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+  try {
+    const res = await fetch(
+      `/api/public/${encodeURIComponent(COMPANY_SLUG)}/submissions/${encodeURIComponent(SUBMISSION_ID)}/finish`,
+      { method: 'POST' }
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+    showDone();
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Finish & submit application';
+    showMsg(err.message, 'err');
+  }
+});
+
+load();
+</script>
+
+</body>
+</html>

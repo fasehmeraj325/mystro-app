@@ -183,6 +183,10 @@ function buildClientPdf(res, submission) {
     ["Employer's address", e.employerAddress],
     ["Employer contact name", e.employerContactName],
     ["Employer number", e.employerNumber],
+    ["Previous employer's business name", e.previousEmployerName],
+    ["Previous occupation", e.previousOccupation],
+    ["Previous employment start date", e.previousEmploymentStartDate],
+    ["Previous employment stop date", e.previousEmploymentStopDate],
   ]);
 
   const se = e.selfEmployed || {};
@@ -254,6 +258,8 @@ function buildClientPdf(res, submission) {
     rows(doc, [
       ["Employer's address", e2.employerAddress], ["Employer contact name", e2.employerContactName],
       ["Employer number", e2.employerNumber],
+      ["Previous employer's business name", e2.previousEmployerName], ["Previous occupation", e2.previousOccupation],
+      ["Previous employment start date", e2.previousEmploymentStartDate], ["Previous employment stop date", e2.previousEmploymentStopDate],
     ]);
     if (e2.employmentType === "Self-employed" && Object.keys(se2).length) {
       subHeading(doc, "Self Employed");

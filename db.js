@@ -7,6 +7,9 @@ if (!process.env.DATABASE_URL) {
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
+  // Configurable so a higher-traffic deployment can raise it without a code
+  // change — stay mindful of the connection cap your Postgres plan allows.
+  max: process.env.PGPOOL_MAX ? Number(process.env.PGPOOL_MAX) : 10,
 });
 
 async function initSchema() {
@@ -89,6 +92,16 @@ async function initSchema() {
   await pool.query(`
     ALTER TABLE submissions ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);
   `);
+
+  // --- indexes -------------------------------------------------------------
+  // company_id isn't automatically indexed just by being a foreign key, and
+  // it's the column every submissions query filters on — without this, the
+  // dashboard table and the duplicate-application check both degrade to a
+  // full table scan as submissions grow.
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_submissions_company_submitted ON submissions (company_id, submitted_at DESC);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_submissions_company_email_status ON submissions (company_id, email, status);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_password_resets_token_hash ON password_resets (token_hash);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_email_verifications_user_created ON email_verifications (user_id, created_at DESC);`);
 }
 
 // --- companies -------------------------------------------------------
@@ -319,6 +332,68 @@ async function updateSubmissionStatus(companyId, id, status) {
   return rows[0] ? toSubmission(rows[0]) : null;
 }
 
+// Draft-only helper: returns null if the submission doesn't exist, belongs
+// to another company, or has already moved past the "Draft" (in-progress,
+// pre-finalize) stage — callers use this to guard edits/uploads to a
+// submission a client hasn't finished yet.
+async function getDraftSubmission(companyId, id) {
+  const submission = await getSubmission(companyId, id);
+  if (!submission || submission.status !== "Draft") return null;
+  return submission;
+}
+
+async function updateSubmissionClientInfo(companyId, id, { fullName, email, phone, clientInfo }) {
+  if (!companyId) throw new Error("updateSubmissionClientInfo requires companyId");
+  const { rows } = await pool.query(
+    `UPDATE submissions
+     SET full_name = $3, email = $4, phone = $5, client_info = $6, updated_at = now()
+     WHERE company_id = $1 AND id = $2 RETURNING *`,
+    [companyId, id, fullName, email, phone || "", JSON.stringify(clientInfo || {})]
+  );
+  return rows[0] ? toSubmission(rows[0]) : null;
+}
+
+async function appendSubmissionFile(companyId, id, field, fileMeta) {
+  if (!companyId) throw new Error("appendSubmissionFile requires companyId");
+  const { rows } = await pool.query(
+    `UPDATE submissions
+     SET files = jsonb_set(
+           files,
+           ARRAY[$3],
+           COALESCE(files->$3, '[]'::jsonb) || $4::jsonb,
+           true
+         ),
+         updated_at = now()
+     WHERE company_id = $1 AND id = $2 RETURNING *`,
+    [companyId, id, field, JSON.stringify([fileMeta])]
+  );
+  return rows[0] ? toSubmission(rows[0]) : null;
+}
+
+// Removes the file at `index` within `field`'s array and returns both the
+// updated submission and the removed file's metadata (so the caller can
+// also delete it from Cloudinary).
+async function removeSubmissionFile(companyId, id, field, index) {
+  if (!companyId) throw new Error("removeSubmissionFile requires companyId");
+  const submission = await getSubmission(companyId, id);
+  if (!submission) return { submission: null, removed: null };
+
+  const entry = submission.files && submission.files[field];
+  const list = Array.isArray(entry) ? entry : entry ? [entry] : [];
+  const removed = list[index];
+  if (!removed) return { submission, removed: null };
+
+  const nextList = list.filter((_, i) => i !== index);
+  const nextFiles = { ...submission.files, [field]: nextList };
+
+  const { rows } = await pool.query(
+    `UPDATE submissions SET files = $3, updated_at = now()
+     WHERE company_id = $1 AND id = $2 RETURNING *`,
+    [companyId, id, JSON.stringify(nextFiles)]
+  );
+  return { submission: rows[0] ? toSubmission(rows[0]) : null, removed };
+}
+
 async function deleteSubmission(companyId, id) {
   if (!companyId) throw new Error("deleteSubmission requires companyId");
   const { rowCount } = await pool.query(
@@ -353,8 +428,12 @@ module.exports = {
   // submissions
   listSubmissions,
   getSubmission,
+  getDraftSubmission,
   getPendingSubmissionByEmail,
   insertSubmission,
   updateSubmissionStatus,
+  updateSubmissionClientInfo,
+  appendSubmissionFile,
+  removeSubmissionFile,
   deleteSubmission,
 };

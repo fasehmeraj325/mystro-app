@@ -373,8 +373,13 @@ button.danger:disabled { opacity: .6; cursor: not-allowed; }
 }
 
 /* Dashboard */
+.table-scroll {
+  overflow-x: auto;
+}
+
 table {
   width: 100%;
+  min-width: 640px;
   border-collapse: collapse;
   font-size: 14px;
 }
@@ -419,7 +424,7 @@ tbody tr:hover { background: #f6f7fd; }
 
 .stat-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 14px;
   margin-bottom: 24px;
 }
@@ -615,3 +620,195 @@ tbody tr:hover { background: #f6f7fd; }
 }
 
 .status-btn.active { border-color: var(--brand); background: #eef2ff; color: var(--brand-dark); }
+
+/* Step pills (topbar) — makes it obvious the form and the document upload
+   are two separate steps/pages, not one long scroll. */
+.step-pills {
+  display: flex;
+  gap: 8px;
+}
+
+.step-pill {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--line-soft);
+  padding: 5px 12px;
+  border-radius: 999px;
+  letter-spacing: .02em;
+}
+
+.step-pill.active {
+  color: #fff;
+  background: var(--brand);
+  border-color: var(--brand);
+}
+
+/* Sticky progress header shown on both client-facing pages */
+.progress-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--line-soft);
+  padding: 10px 24px 14px;
+}
+
+.progress-header-inner {
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 8px;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
+.progress-pct {
+  color: var(--page-text);
+  font-weight: 700;
+}
+
+.progress-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand), #7c73ff);
+  transition: width .35s ease;
+}
+
+/* Document upload page — per-document-type sections */
+.doc-field {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.doc-field:first-child { padding-top: 0; }
+.doc-field:last-child { border-bottom: none; padding-bottom: 0; }
+
+.doc-field-head {
+  margin-bottom: 10px;
+}
+
+.doc-field-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.uploaded-list { margin-bottom: 10px; }
+
+.uploaded-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f6fbf7;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.uploaded-check {
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.uploaded-name {
+  flex: 1;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.uploaded-meta {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.upload-drop.uploading .fname {
+  color: var(--muted);
+}
+
+/* Mini progress bars — dashboard table + modal */
+.mini-progress-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 110px;
+}
+
+.mini-progress-row .mini-progress-lbl {
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+.mini-progress-track {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.mini-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--brand);
+}
+
+.mini-progress-fill.docs { background: var(--ok); }
+
+.progress-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.badge.Draft { background: #fffbeb; color: var(--warn); }
+
+/* Loading states — avoid a blank flash while the initial fetch is in flight */
+.loading-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  padding: 60px 0;
+  justify-content: center;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--line-soft);
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-dim {
+  opacity: .45;
+  pointer-events: none;
+  transition: opacity .15s;
+}

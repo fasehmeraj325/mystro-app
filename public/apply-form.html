@@ -3,13 +3,28 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Client Onboarding</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%234f46e5%27/%3E%3C/svg%3E" />
+<title>Client Information</title>
 <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
 
 <div class="topbar">
   <div class="brand"><span class="dot"></span> <span id="brandName">Docklio</span></div>
+  <div class="step-pills">
+    <span class="step-pill active">1 Details</span>
+    <span class="step-pill">2 Documents</span>
+  </div>
+</div>
+
+<div class="progress-header" id="progressHeader">
+  <div class="progress-header-inner">
+    <div class="progress-label">
+      <span>Step 1 of 2 — Client details</span>
+      <span class="progress-pct" id="formPct">0%</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="formFill" style="width:0%"></div></div>
+  </div>
 </div>
 
 <div class="wrap">
@@ -20,15 +35,15 @@
 
   <div id="formWrap">
   <h1 id="formTitle">Client Information</h1>
-  <p class="subtitle">Fill in your details and upload the required documents. We'll review your submission and get back to you.</p>
+  <p class="subtitle">Fill in your details below. Once you're done, you'll move on to a separate page to upload your documents.</p>
 
   <div id="msg" class="msg hidden"></div>
 
-  <form id="intakeForm" class="card" enctype="multipart/form-data">
+  <form id="intakeForm" class="card">
 
     <div class="hp-field" aria-hidden="true">
-      <label for="company">Company</label>
-      <input type="text" id="company" name="company" tabindex="-1" autocomplete="off" />
+      <label for="hp_confirm">Leave this field blank</label>
+      <input type="text" id="hp_confirm" name="hp_confirm" tabindex="-1" autocomplete="off" />
     </div>
 
     <div class="section-title">Applicants</div>
@@ -256,6 +271,22 @@
         <label for="e_employerNumber">Employer number</label>
         <input type="tel" id="e_employerNumber" />
       </div>
+      <div class="field" style="grid-column:1/-1;">
+        <label for="e_previousEmployerName">Previous employer's business name <span class="opt">(if less than 2 years in current job)</span></label>
+        <input type="text" id="e_previousEmployerName" />
+      </div>
+      <div class="field">
+        <label for="e_previousOccupation">Previous occupation</label>
+        <input type="text" id="e_previousOccupation" />
+      </div>
+      <div class="field">
+        <label for="e_previousEmploymentStartDate">Previous employment start date</label>
+        <input type="date" id="e_previousEmploymentStartDate" />
+      </div>
+      <div class="field">
+        <label for="e_previousEmploymentStopDate">Previous employment stop date</label>
+        <input type="date" id="e_previousEmploymentStopDate" />
+      </div>
     </div>
 
     <div class="subsection hidden" id="e_selfEmployedHeading">Self Employed</div>
@@ -375,7 +406,7 @@
         </div>
         <div class="field">
           <label for="p2_email">Email address <span class="req">*</span></label>
-          <input type="email" id="p2_email" required />
+          <input type="email" id="p2_email" />
         </div>
         <div class="field">
           <label for="p2_mobile">Mobile phone</label>
@@ -551,6 +582,22 @@
         <div class="field">
           <label for="e2_employerNumber">Employer number</label>
           <input type="tel" id="e2_employerNumber" />
+        </div>
+        <div class="field" style="grid-column:1/-1;">
+          <label for="e2_previousEmployerName">Previous employer's business name <span class="opt">(if less than 2 years in current job)</span></label>
+          <input type="text" id="e2_previousEmployerName" />
+        </div>
+        <div class="field">
+          <label for="e2_previousOccupation">Previous occupation</label>
+          <input type="text" id="e2_previousOccupation" />
+        </div>
+        <div class="field">
+          <label for="e2_previousEmploymentStartDate">Previous employment start date</label>
+          <input type="date" id="e2_previousEmploymentStartDate" />
+        </div>
+        <div class="field">
+          <label for="e2_previousEmploymentStopDate">Previous employment stop date</label>
+          <input type="date" id="e2_previousEmploymentStopDate" />
         </div>
       </div>
 
@@ -769,48 +816,8 @@
       <input type="text" id="oe_otherDescription" />
     </div>
 
-    <div class="section-title">Required documents</div>
-    <div class="grid2">
-      <div class="field">
-        <label>Valid Driver's Licence <span class="req">*</span></label>
-        <div id="fg_driversLicence"></div>
-      </div>
-      <div class="field">
-        <label>Valid Passport <span class="req">*</span></label>
-        <div id="fg_passport"></div>
-      </div>
-      <div class="field">
-        <label>Payslips <span class="opt">(2 most recent, if PAYG)</span></label>
-        <div id="fg_payslips"></div>
-      </div>
-      <div class="field">
-        <label>Income proof <span class="opt">(3-mo bank statement or FY income statement, if PAYG)</span></label>
-        <div id="fg_incomeProof"></div>
-      </div>
-      <div class="field">
-        <label>Home loan statement(s) <span class="opt">(last 6 months, if mortgaged)</span></label>
-        <div id="fg_homeLoanStatements"></div>
-      </div>
-      <div class="field">
-        <label>Rental income statement(s) <span class="opt">(investment properties)</span></label>
-        <div id="fg_rentalIncomeStatements"></div>
-      </div>
-      <div class="field">
-        <label>Council Rates Notice <span class="opt">(+ payment proof, owned properties)</span></label>
-        <div id="fg_councilRatesNotices"></div>
-      </div>
-      <div class="field">
-        <label>Individual Tax Return <span class="opt">(FY25/FY26, if self-employed)</span></label>
-        <div id="fg_taxReturn"></div>
-      </div>
-      <div class="field">
-        <label>Liability statement(s) <span class="opt">(latest 1 month, where applicable)</span></label>
-        <div id="fg_liabilityStatements"></div>
-      </div>
-    </div>
-
     <div class="actions">
-      <button type="submit" class="primary" id="submitBtn">Submit application</button>
+      <button type="submit" class="primary" id="submitBtn">Continue to document upload →</button>
     </div>
   </form>
   </div>
@@ -909,6 +916,7 @@
   </div>
 </template>
 
+<script src="/progress.js"></script>
 <script>
 // --- resolve which company this application link belongs to ---------------
 const COMPANY_SLUG = (() => {
@@ -916,9 +924,12 @@ const COMPANY_SLUG = (() => {
   return match ? match[1] : null;
 })();
 
+const EDIT_ID = new URLSearchParams(window.location.search).get('id');
+
 async function resolveCompany() {
   if (!COMPANY_SLUG) {
     document.getElementById('formWrap').classList.add('hidden');
+    document.getElementById('progressHeader').classList.add('hidden');
     document.getElementById('notFound').classList.remove('hidden');
     return;
   }
@@ -931,83 +942,10 @@ async function resolveCompany() {
     document.title = `${company.businessName || company.name} — Client Onboarding`;
   } catch (e) {
     document.getElementById('formWrap').classList.add('hidden');
+    document.getElementById('progressHeader').classList.add('hidden');
     document.getElementById('notFound').classList.remove('hidden');
   }
 }
-resolveCompany();
-
-// --- incremental document upload slots --------------------------------
-// Each document field starts with one upload slot. As soon as a client
-// picks a file, a new empty slot appears below (up to maxCount) so they
-// can attach a second, third, etc. file without needing a multi-select
-// file picker. Slots beyond the first can be removed.
-function setupFileGroup(fieldName, maxCount, itemLabel) {
-  const container = document.getElementById('fg_' + fieldName);
-
-  function renumber() {
-    container.querySelectorAll('.file-slot').forEach((slot, i) => {
-      slot.querySelector('.slot-label').textContent = `${itemLabel} ${i + 1}`;
-    });
-  }
-
-  function addSlot() {
-    if (container.querySelectorAll('.file-slot').length >= maxCount) return;
-
-    const slot = document.createElement('div');
-    slot.className = 'file-slot';
-    slot.innerHTML = `
-      <div class="slot-label"></div>
-      <label class="file-drop">
-        <input type="file" name="${fieldName}" />
-        <div class="fname" data-empty="Click to upload">Click to upload</div>
-      </label>
-      <button type="button" class="remove-slot" title="Remove">&times;</button>
-    `;
-    container.appendChild(slot);
-    renumber();
-
-    const input = slot.querySelector('input[type=file]');
-    const fname = slot.querySelector('.fname');
-
-    input.addEventListener('change', () => {
-      if (input.files.length) {
-        fname.textContent = input.files[0].name;
-        if (slot === container.lastElementChild) addSlot();
-      } else {
-        fname.textContent = fname.dataset.empty;
-      }
-    });
-
-    slot.querySelector('.remove-slot').addEventListener('click', () => {
-      const slots = container.querySelectorAll('.file-slot');
-      if (slots.length <= 1) {
-        input.value = '';
-        fname.textContent = fname.dataset.empty;
-        return;
-      }
-      slot.remove();
-      renumber();
-    });
-  }
-
-  addSlot();
-  return {
-    reset: () => { container.innerHTML = ''; addSlot(); },
-    hasFile: () => Array.from(container.querySelectorAll('input[type=file]')).some(i => i.files.length > 0),
-  };
-}
-
-const fileGroups = {
-  driversLicence: setupFileGroup('driversLicence', 2, "Driver's Licence"),
-  passport: setupFileGroup('passport', 2, 'Passport'),
-  payslips: setupFileGroup('payslips', 4, 'Payslip'),
-  incomeProof: setupFileGroup('incomeProof', 6, 'Income document'),
-  homeLoanStatements: setupFileGroup('homeLoanStatements', 6, 'Home loan statement'),
-  rentalIncomeStatements: setupFileGroup('rentalIncomeStatements', 6, 'Rental statement'),
-  councilRatesNotices: setupFileGroup('councilRatesNotices', 6, 'Council rates notice'),
-  taxReturn: setupFileGroup('taxReturn', 4, 'Tax return'),
-  liabilityStatements: setupFileGroup('liabilityStatements', 10, 'Liability statement'),
-};
 
 // --- generic Yes/No show/hide -------------------------------------------
 function wireYesNoToggles(root) {
@@ -1048,17 +986,23 @@ function setupRepeatable(containerId, addBtnId, templateId) {
   const container = document.getElementById(containerId);
   const template = document.getElementById(templateId);
 
-  function addItem() {
+  function addItem(prefill) {
     const node = template.content.cloneNode(true);
     container.appendChild(node);
     const item = container.lastElementChild;
     item.querySelector('.remove-item').addEventListener('click', () => item.remove());
     wireYesNoToggles(item);
     syncOwnerVisibility();
+    if (prefill) {
+      item.querySelectorAll('[data-field]').forEach(el => {
+        if (prefill[el.dataset.field] !== undefined) el.value = prefill[el.dataset.field];
+      });
+      item.querySelectorAll('select.yesno').forEach(sel => sel.dispatchEvent(new Event('change')));
+    }
     return item;
   }
 
-  document.getElementById(addBtnId).addEventListener('click', addItem);
+  document.getElementById(addBtnId).addEventListener('click', () => addItem());
   return { container, addItem };
 }
 
@@ -1092,8 +1036,6 @@ document.getElementById('liabilityChecks').addEventListener('change', () => {
 });
 
 // --- employment type: PAYG vs Self Employed --------------------------------
-// Factory so applicant 1 (e_/se_) and applicant 2 (e2_/se2_) share identical
-// show/hide behavior without duplicating the logic.
 function makeEmploymentVisibility(prefix) {
   return function updateEmploymentVisibility() {
     const employed = val(prefix + 'currentlyEmployed') === 'Yes';
@@ -1120,7 +1062,7 @@ updateEmploymentVisibility2();
 // --- asset detail blocks (description + value per owned asset type) --------
 const ASSET_TYPES_WITH_OWN_UI = ['Savings', 'No Assets'];
 const assetDetailValues = {};
-document.getElementById('assetChecks').addEventListener('change', () => {
+function renderAssetDetails() {
   const owned = checkedValues('assetChecks').filter(t => !ASSET_TYPES_WITH_OWN_UI.includes(t));
   const detailsEl = document.getElementById('assetDetails');
   detailsEl.innerHTML = '';
@@ -1150,7 +1092,8 @@ document.getElementById('assetChecks').addEventListener('change', () => {
     detailsEl.appendChild(block);
   });
   syncOwnerVisibility();
-});
+}
+document.getElementById('assetChecks').addEventListener('change', renderAssetDetails);
 
 function collectAssetDetails() {
   const result = {};
@@ -1164,7 +1107,7 @@ function collectAssetDetails() {
 
 // --- ongoing expense detail blocks ------------------------------------------
 const expenseDetailValues = {};
-document.getElementById('expenseChecks').addEventListener('change', () => {
+function renderExpenseDetails() {
   const types = checkedValues('expenseChecks');
   const detailsEl = document.getElementById('expenseDetails');
   detailsEl.innerHTML = '';
@@ -1191,7 +1134,8 @@ document.getElementById('expenseChecks').addEventListener('change', () => {
     detailsEl.appendChild(block);
   });
   document.getElementById('expenseOtherField').classList.toggle('hidden', !types.includes('Other'));
-});
+}
+document.getElementById('expenseChecks').addEventListener('change', renderExpenseDetails);
 
 function collectExpenseDetails() {
   const result = {};
@@ -1204,8 +1148,6 @@ function collectExpenseDetails() {
 }
 
 // --- additional income source detail blocks --------------------------------
-// Factory so applicant 1 (ai_) and applicant 2 (ai2_) share identical
-// checkbox -> detail-block behavior without duplicating the logic.
 function wireIncomeSourceChecks(checksId, detailsContainerId, store) {
   document.getElementById(checksId).addEventListener('change', () => {
     const sources = checkedValues(checksId);
@@ -1253,162 +1195,227 @@ wireIncomeSourceChecks('ai2_sourceChecks', 'ai2_sourceDetails', additionalIncome
 
 // --- build submission payload ---------------------------------------------
 function val(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+function setVal(id, v) { const el = document.getElementById(id); if (el && v !== undefined && v !== null) el.value = v; }
 
 function buildClientInfo() {
   return {
     applicants: val('applicants'),
     secondApplicant: isJointApplication() ? {
       personal: {
-        title: val('p2_title'),
-        firstName: val('p2_firstName'),
-        surname: val('p2_surname'),
-        lastName: val('p2_lastName'),
-        hasMiddleName: val('p2_hasMiddleName'),
-        middleName: val('p2_middleName'),
-        email: val('p2_email'),
-        mobilePhone: val('p2_mobile'),
-        australianCitizen: val('p2_citizen'),
-        drivingLicense: val('p2_license'),
-        maritalStatus: val('p2_marital'),
-        dependants: val('p2_dependants'),
-        dependantsCount: val('p2_dependantsCount'),
-        dependantsAges: val('p2_dependantsAges'),
+        title: val('p2_title'), firstName: val('p2_firstName'), surname: val('p2_surname'),
+        lastName: val('p2_lastName'), hasMiddleName: val('p2_hasMiddleName'), middleName: val('p2_middleName'),
+        email: val('p2_email'), mobilePhone: val('p2_mobile'), australianCitizen: val('p2_citizen'),
+        drivingLicense: val('p2_license'), maritalStatus: val('p2_marital'), dependants: val('p2_dependants'),
+        dependantsCount: val('p2_dependantsCount'), dependantsAges: val('p2_dependantsAges'),
       },
       address: {
-        residentialAddress: val('a2_residentialAddress'),
-        residentialStatus: val('a2_residentialStatus'),
-        addressStartDate: val('a2_addressStartDate'),
-        postalSameAsResidential: val('a2_postalSame'),
-        postalAddress: val('a2_postalAddress'),
-        previousAddress: val('a2_previousAddress'),
-        previousAddressStartDate: val('a2_previousAddressStartDate'),
-        previousAddressStopDate: val('a2_previousAddressStopDate'),
-        afterSettlementAddressKnown: val('a2_afterSettlementKnown'),
-        afterSettlementAddress: val('a2_afterSettlementAddress'),
+        residentialAddress: val('a2_residentialAddress'), residentialStatus: val('a2_residentialStatus'),
+        addressStartDate: val('a2_addressStartDate'), postalSameAsResidential: val('a2_postalSame'),
+        postalAddress: val('a2_postalAddress'), previousAddress: val('a2_previousAddress'),
+        previousAddressStartDate: val('a2_previousAddressStartDate'), previousAddressStopDate: val('a2_previousAddressStopDate'),
+        afterSettlementAddressKnown: val('a2_afterSettlementKnown'), afterSettlementAddress: val('a2_afterSettlementAddress'),
       },
       employment: {
-        currentlyEmployed: val('e2_currentlyEmployed'),
-        employmentType: val('e2_employmentType'),
-        secondJob: val('e2_secondJob'),
-        employerName: val('e2_employerName'),
-        employmentStatus: val('e2_employmentStatus'),
-        employmentStartDate: val('e2_employmentStartDate'),
-        occupation: val('e2_occupation'),
-        incomeFrequency: val('e2_incomeFrequency'),
-        grossIncome: val('e2_grossIncome'),
-        employerAddress: val('e2_employerAddress'),
-        employerContactName: val('e2_employerContactName'),
-        employerNumber: val('e2_employerNumber'),
+        currentlyEmployed: val('e2_currentlyEmployed'), employmentType: val('e2_employmentType'), secondJob: val('e2_secondJob'),
+        employerName: val('e2_employerName'), employmentStatus: val('e2_employmentStatus'), employmentStartDate: val('e2_employmentStartDate'),
+        occupation: val('e2_occupation'), incomeFrequency: val('e2_incomeFrequency'), grossIncome: val('e2_grossIncome'),
+        employerAddress: val('e2_employerAddress'), employerContactName: val('e2_employerContactName'), employerNumber: val('e2_employerNumber'),
+        previousEmployerName: val('e2_previousEmployerName'), previousOccupation: val('e2_previousOccupation'),
+        previousEmploymentStartDate: val('e2_previousEmploymentStartDate'), previousEmploymentStopDate: val('e2_previousEmploymentStopDate'),
         selfEmployed: {
-          businessName: val('se2_businessName'),
-          occupation: val('se2_occupation'),
-          companyType: val('se2_companyType'),
-          businessStartDate: val('se2_businessStartDate'),
-          currentEmploymentStatus: val('se2_currentEmploymentStatus'),
-          natureOfBusiness: val('se2_natureOfBusiness'),
-          abnAcn: val('se2_abnAcn'),
+          businessName: val('se2_businessName'), occupation: val('se2_occupation'), companyType: val('se2_companyType'),
+          businessStartDate: val('se2_businessStartDate'), currentEmploymentStatus: val('se2_currentEmploymentStatus'),
+          natureOfBusiness: val('se2_natureOfBusiness'), abnAcn: val('se2_abnAcn'),
         },
       },
       additionalIncome: {
-        fromEmployment: val('ai2_fromEmployment'),
-        sources: checkedValues('ai2_sourceChecks'),
-        sourceDetails: collectSourceDetails('ai2_sourceDetails'),
-        fromGovernment: val('ai2_fromGovernment'),
-        fromInvestments: val('ai2_fromInvestments'),
+        fromEmployment: val('ai2_fromEmployment'), sources: checkedValues('ai2_sourceChecks'),
+        sourceDetails: collectSourceDetails('ai2_sourceDetails'), fromGovernment: val('ai2_fromGovernment'), fromInvestments: val('ai2_fromInvestments'),
       },
     } : null,
     personal: {
-      title: val('p_title'),
-      firstName: val('p_firstName'),
-      surname: val('p_surname'),
-      lastName: val('p_lastName'),
-      hasMiddleName: val('p_hasMiddleName'),
-      middleName: val('p_middleName'),
-      email: val('p_email'),
-      mobilePhone: val('p_mobile'),
-      australianCitizen: val('p_citizen'),
-      drivingLicense: val('p_license'),
-      maritalStatus: val('p_marital'),
-      dependants: val('p_dependants'),
-      dependantsCount: val('p_dependantsCount'),
-      dependantsAges: val('p_dependantsAges'),
+      title: val('p_title'), firstName: val('p_firstName'), surname: val('p_surname'), lastName: val('p_lastName'),
+      hasMiddleName: val('p_hasMiddleName'), middleName: val('p_middleName'), email: val('p_email'), mobilePhone: val('p_mobile'),
+      australianCitizen: val('p_citizen'), drivingLicense: val('p_license'), maritalStatus: val('p_marital'),
+      dependants: val('p_dependants'), dependantsCount: val('p_dependantsCount'), dependantsAges: val('p_dependantsAges'),
     },
     address: {
-      residentialAddress: val('a_residentialAddress'),
-      residentialStatus: val('a_residentialStatus'),
-      addressStartDate: val('a_addressStartDate'),
-      postalSameAsResidential: val('a_postalSame'),
-      postalAddress: val('a_postalAddress'),
-      previousAddress: val('a_previousAddress'),
-      previousAddressStartDate: val('a_previousAddressStartDate'),
-      previousAddressStopDate: val('a_previousAddressStopDate'),
-      afterSettlementAddressKnown: val('a_afterSettlementKnown'),
+      residentialAddress: val('a_residentialAddress'), residentialStatus: val('a_residentialStatus'),
+      addressStartDate: val('a_addressStartDate'), postalSameAsResidential: val('a_postalSame'), postalAddress: val('a_postalAddress'),
+      previousAddress: val('a_previousAddress'), previousAddressStartDate: val('a_previousAddressStartDate'),
+      previousAddressStopDate: val('a_previousAddressStopDate'), afterSettlementAddressKnown: val('a_afterSettlementKnown'),
       afterSettlementAddress: val('a_afterSettlementAddress'),
     },
     employment: {
-      currentlyEmployed: val('e_currentlyEmployed'),
-      employmentType: val('e_employmentType'),
-      secondJob: val('e_secondJob'),
-      employerName: val('e_employerName'),
-      employmentStatus: val('e_employmentStatus'),
-      employmentStartDate: val('e_employmentStartDate'),
-      occupation: val('e_occupation'),
-      incomeFrequency: val('e_incomeFrequency'),
-      grossIncome: val('e_grossIncome'),
-      employerAddress: val('e_employerAddress'),
-      employerContactName: val('e_employerContactName'),
-      employerNumber: val('e_employerNumber'),
+      currentlyEmployed: val('e_currentlyEmployed'), employmentType: val('e_employmentType'), secondJob: val('e_secondJob'),
+      employerName: val('e_employerName'), employmentStatus: val('e_employmentStatus'), employmentStartDate: val('e_employmentStartDate'),
+      occupation: val('e_occupation'), incomeFrequency: val('e_incomeFrequency'), grossIncome: val('e_grossIncome'),
+      employerAddress: val('e_employerAddress'), employerContactName: val('e_employerContactName'), employerNumber: val('e_employerNumber'),
+      previousEmployerName: val('e_previousEmployerName'), previousOccupation: val('e_previousOccupation'),
+      previousEmploymentStartDate: val('e_previousEmploymentStartDate'), previousEmploymentStopDate: val('e_previousEmploymentStopDate'),
       selfEmployed: {
-        businessName: val('se_businessName'),
-        occupation: val('se_occupation'),
-        companyType: val('se_companyType'),
-        businessStartDate: val('se_businessStartDate'),
-        currentEmploymentStatus: val('se_currentEmploymentStatus'),
-        natureOfBusiness: val('se_natureOfBusiness'),
-        abnAcn: val('se_abnAcn'),
+        businessName: val('se_businessName'), occupation: val('se_occupation'), companyType: val('se_companyType'),
+        businessStartDate: val('se_businessStartDate'), currentEmploymentStatus: val('se_currentEmploymentStatus'),
+        natureOfBusiness: val('se_natureOfBusiness'), abnAcn: val('se_abnAcn'),
       },
     },
     additionalIncome: {
-      fromEmployment: val('ai_fromEmployment'),
-      sources: checkedValues('ai_sourceChecks'),
-      sourceDetails: collectSourceDetails('ai_sourceDetails'),
-      fromGovernment: val('ai_fromGovernment'),
-      fromInvestments: val('ai_fromInvestments'),
+      fromEmployment: val('ai_fromEmployment'), sources: checkedValues('ai_sourceChecks'),
+      sourceDetails: collectSourceDetails('ai_sourceDetails'), fromGovernment: val('ai_fromGovernment'), fromInvestments: val('ai_fromInvestments'),
     },
     realEstate: {
       hasInvestmentProperties: val('re_hasInvestment'),
       existingHome: {
-        estimatedValue: val('reh_estimatedValue'),
-        owner: val('reh_owner'),
-        lender: val('reh_lender'),
-        amountOwing: val('reh_amountOwing'),
-        originalLoanAmount: val('reh_originalLoanAmount'),
-        interestRateKnown: val('reh_interestRateKnown'),
-        interestRate: val('reh_interestRate'),
-        isFixed: val('reh_isFixed'),
-        monthlyRepayment: val('reh_monthlyRepayment'),
-        isRefinance: val('reh_isRefinance'),
+        estimatedValue: val('reh_estimatedValue'), owner: val('reh_owner'), lender: val('reh_lender'),
+        amountOwing: val('reh_amountOwing'), originalLoanAmount: val('reh_originalLoanAmount'),
+        interestRateKnown: val('reh_interestRateKnown'), interestRate: val('reh_interestRate'), isFixed: val('reh_isFixed'),
+        monthlyRepayment: val('reh_monthlyRepayment'), isRefinance: val('reh_isRefinance'),
       },
       investmentProperties: readRepeatable(investmentRepeat.container),
     },
     assets: {
-      owned: checkedValues('assetChecks'),
-      details: collectAssetDetails(),
-      savingsAccounts: readRepeatable(savingsRepeat.container),
+      owned: checkedValues('assetChecks'), details: collectAssetDetails(), savingsAccounts: readRepeatable(savingsRepeat.container),
     },
     liabilities: {
-      types: checkedValues('liabilityChecks'),
-      personalLoans: readRepeatable(personalLoanRepeat.container),
+      types: checkedValues('liabilityChecks'), personalLoans: readRepeatable(personalLoanRepeat.container),
       creditCards: readRepeatable(creditCardRepeat.container),
     },
     ongoingExpenses: {
-      types: checkedValues('expenseChecks'),
-      details: collectExpenseDetails(),
-      otherDescription: val('oe_otherDescription'),
+      types: checkedValues('expenseChecks'), details: collectExpenseDetails(), otherDescription: val('oe_otherDescription'),
     },
   };
 }
 
+// --- prefill the form from a previously-saved draft (edit flow) -----------
+function populatePerson(prefix, person) {
+  const p = person.personal || {}, a = person.address || {}, e = person.employment || {}, ai = person.additionalIncome || {};
+  setVal(prefix + 'title', p.title); setVal(prefix + 'firstName', p.firstName); setVal(prefix + 'surname', p.surname);
+  setVal(prefix + 'lastName', p.lastName); setVal(prefix + 'hasMiddleName', p.hasMiddleName); setVal(prefix + 'middleName', p.middleName);
+  const idPrefix = prefix; // p_ / p2_
+  setVal(idPrefix + 'email', p.email); setVal(idPrefix + 'mobile', p.mobilePhone);
+  setVal(idPrefix + 'citizen', p.australianCitizen); setVal(idPrefix + 'license', p.drivingLicense);
+  setVal(idPrefix + 'marital', p.maritalStatus); setVal(idPrefix + 'dependants', p.dependants);
+  setVal(idPrefix + 'dependantsCount', p.dependantsCount); setVal(idPrefix + 'dependantsAges', p.dependantsAges);
+
+  const addrPrefix = prefix === 'p_' ? 'a_' : 'a2_';
+  setVal(addrPrefix + 'residentialAddress', a.residentialAddress); setVal(addrPrefix + 'residentialStatus', a.residentialStatus);
+  setVal(addrPrefix + 'addressStartDate', a.addressStartDate); setVal(addrPrefix + 'postalSame', a.postalSameAsResidential);
+  setVal(addrPrefix + 'postalAddress', a.postalAddress); setVal(addrPrefix + 'previousAddress', a.previousAddress);
+  setVal(addrPrefix + 'previousAddressStartDate', a.previousAddressStartDate); setVal(addrPrefix + 'previousAddressStopDate', a.previousAddressStopDate);
+  setVal(addrPrefix + 'afterSettlementKnown', a.afterSettlementAddressKnown); setVal(addrPrefix + 'afterSettlementAddress', a.afterSettlementAddress);
+
+  const empPrefix = prefix === 'p_' ? 'e_' : 'e2_';
+  const sePrefix = prefix === 'p_' ? 'se_' : 'se2_';
+  setVal(empPrefix + 'currentlyEmployed', e.currentlyEmployed); setVal(empPrefix + 'employmentType', e.employmentType);
+  setVal(empPrefix + 'secondJob', e.secondJob); setVal(empPrefix + 'employerName', e.employerName);
+  setVal(empPrefix + 'employmentStatus', e.employmentStatus); setVal(empPrefix + 'employmentStartDate', e.employmentStartDate);
+  setVal(empPrefix + 'occupation', e.occupation); setVal(empPrefix + 'incomeFrequency', e.incomeFrequency);
+  setVal(empPrefix + 'grossIncome', e.grossIncome); setVal(empPrefix + 'employerAddress', e.employerAddress);
+  setVal(empPrefix + 'employerContactName', e.employerContactName); setVal(empPrefix + 'employerNumber', e.employerNumber);
+  setVal(empPrefix + 'previousEmployerName', e.previousEmployerName); setVal(empPrefix + 'previousOccupation', e.previousOccupation);
+  setVal(empPrefix + 'previousEmploymentStartDate', e.previousEmploymentStartDate); setVal(empPrefix + 'previousEmploymentStopDate', e.previousEmploymentStopDate);
+  const se = e.selfEmployed || {};
+  setVal(sePrefix + 'businessName', se.businessName); setVal(sePrefix + 'occupation', se.occupation);
+  setVal(sePrefix + 'companyType', se.companyType); setVal(sePrefix + 'businessStartDate', se.businessStartDate);
+  setVal(sePrefix + 'currentEmploymentStatus', se.currentEmploymentStatus); setVal(sePrefix + 'natureOfBusiness', se.natureOfBusiness);
+  setVal(sePrefix + 'abnAcn', se.abnAcn);
+
+  const aiPrefix = prefix === 'p_' ? 'ai_' : 'ai2_';
+  setVal(aiPrefix + 'fromEmployment', ai.fromEmployment); setVal(aiPrefix + 'fromGovernment', ai.fromGovernment);
+  setVal(aiPrefix + 'fromInvestments', ai.fromInvestments);
+  const store = prefix === 'p_' ? additionalIncomeDetails : additionalIncomeDetails2;
+  Object.assign(store, ai.sourceDetails || {});
+  (ai.sources || []).forEach(source => {
+    const cb = document.querySelector(`#${aiPrefix}sourceChecks input[value="${CSS.escape(source)}"]`);
+    if (cb) cb.checked = true;
+  });
+  document.getElementById(aiPrefix + 'sourceChecks').dispatchEvent(new Event('change'));
+}
+
+function populateClientInfo(info) {
+  setVal('applicants', info.applicants);
+  populatePerson('p_', { personal: info.personal, address: info.address, employment: info.employment, additionalIncome: info.additionalIncome });
+
+  if (info.applicants === 'Me and someone else' && info.secondApplicant) {
+    populatePerson('p2_', info.secondApplicant);
+  }
+
+  const re = info.realEstate || {}, reh = re.existingHome || {};
+  setVal('re_hasInvestment', re.hasInvestmentProperties);
+  setVal('reh_estimatedValue', reh.estimatedValue); setVal('reh_owner', reh.owner); setVal('reh_lender', reh.lender);
+  setVal('reh_amountOwing', reh.amountOwing); setVal('reh_originalLoanAmount', reh.originalLoanAmount);
+  setVal('reh_interestRateKnown', reh.interestRateKnown); setVal('reh_interestRate', reh.interestRate);
+  setVal('reh_isFixed', reh.isFixed); setVal('reh_monthlyRepayment', reh.monthlyRepayment); setVal('reh_isRefinance', reh.isRefinance);
+  (re.investmentProperties || []).forEach(p => investmentRepeat.addItem(p));
+
+  const assets = info.assets || {};
+  Object.assign(assetDetailValues, assets.details || {});
+  (assets.owned || []).forEach(v => {
+    const cb = document.querySelector(`#assetChecks input[value="${CSS.escape(v)}"]`);
+    if (cb) cb.checked = true;
+  });
+  renderAssetDetails();
+  (assets.savingsAccounts || []).forEach(s => savingsRepeat.addItem(s));
+
+  const liabilities = info.liabilities || {};
+  (liabilities.types || []).forEach(v => {
+    const cb = document.querySelector(`#liabilityChecks input[value="${CSS.escape(v)}"]`);
+    if (cb) cb.checked = true;
+  });
+  document.getElementById('liabilityChecks').dispatchEvent(new Event('change'));
+  (liabilities.personalLoans || []).forEach(l => personalLoanRepeat.addItem(l));
+  (liabilities.creditCards || []).forEach(c => creditCardRepeat.addItem(c));
+
+  const oe = info.ongoingExpenses || {};
+  Object.assign(expenseDetailValues, oe.details || {});
+  (oe.types || []).forEach(v => {
+    const cb = document.querySelector(`#expenseChecks input[value="${CSS.escape(v)}"]`);
+    if (cb) cb.checked = true;
+  });
+  renderExpenseDetails();
+  setVal('oe_otherDescription', oe.otherDescription);
+
+  wireYesNoToggles(document);
+  updateEmploymentVisibility1();
+  updateEmploymentVisibility2();
+  syncOwnerVisibility();
+  updateFormProgress();
+}
+
+// --- live progress bar ------------------------------------------------
+let progressTimer = null;
+function updateFormProgress() {
+  const { percent } = DocklioProgress.computeFormProgress(buildClientInfo());
+  document.getElementById('formFill').style.width = percent + '%';
+  document.getElementById('formPct').textContent = percent + '%';
+}
+function scheduleProgressUpdate() {
+  clearTimeout(progressTimer);
+  progressTimer = setTimeout(updateFormProgress, 150);
+}
+document.getElementById('intakeForm').addEventListener('input', scheduleProgressUpdate);
+document.getElementById('intakeForm').addEventListener('change', scheduleProgressUpdate);
+
+// --- load draft for edit mode ------------------------------------------
+async function loadDraftForEdit() {
+  if (!EDIT_ID || !COMPANY_SLUG) return;
+  const card = document.querySelector('#intakeForm');
+  card.classList.add('loading-dim');
+  try {
+    const res = await fetch(`/api/public/${encodeURIComponent(COMPANY_SLUG)}/submissions/${encodeURIComponent(EDIT_ID)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.finalized) return; // already submitted — nothing to edit
+    populateClientInfo(data.clientInfo || {});
+    document.getElementById('submitBtn').textContent = 'Save & continue to documents →';
+  } catch (e) {
+    // Not fatal — client just starts with a blank form.
+  } finally {
+    card.classList.remove('loading-dim');
+  }
+}
+
+// --- submit -----------------------------------------------------------
 const form = document.getElementById('intakeForm');
 const msg = document.getElementById('msg');
 const submitBtn = document.getElementById('submitBtn');
@@ -1417,49 +1424,58 @@ form.addEventListener('submit', async (e) => {
   e.preventDefault();
   msg.className = 'msg hidden';
   submitBtn.disabled = true;
-  submitBtn.textContent = 'Submitting...';
+  submitBtn.textContent = 'Saving...';
 
   try {
-    if (!fileGroups.driversLicence.hasFile()) throw new Error("Please upload a valid Driver's Licence.");
-    if (!fileGroups.passport.hasFile()) throw new Error('Please upload a valid Passport.');
+    if (isJointApplication() && !val('p2_email')) {
+      throw new Error("Please enter the second applicant's email address.");
+    }
 
-    const fd = new FormData(form);
-    fd.append('clientInfo', JSON.stringify(buildClientInfo()));
+    const clientInfo = buildClientInfo();
+    const payload = { clientInfo, hp_confirm: val('hp_confirm') };
 
-    const res = await fetch(`/api/public/${encodeURIComponent(COMPANY_SLUG)}/submit`, {
-      method: 'POST',
-      body: fd,
+    let isEdit = Boolean(EDIT_ID);
+    let url = isEdit
+      ? `/api/public/${encodeURIComponent(COMPANY_SLUG)}/submissions/${encodeURIComponent(EDIT_ID)}`
+      : `/api/public/${encodeURIComponent(COMPANY_SLUG)}/submissions`;
+
+    let res = await fetch(url, {
+      method: isEdit ? 'PATCH' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     });
-    const data = await res.json();
+    let data = await res.json();
+
+    // The draft this edit link pointed at was already finished (e.g. the
+    // client already submitted once and came back via an old link/browser
+    // back button) — start a brand new application with what they just
+    // typed instead of leaving them stuck on a dead-end error.
+    if (!res.ok && res.status === 409 && isEdit) {
+      isEdit = false;
+      res = await fetch(`/api/public/${encodeURIComponent(COMPANY_SLUG)}/submissions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      data = await res.json();
+    }
 
     if (!res.ok) throw new Error(data.error || 'Something went wrong');
 
-    msg.className = 'msg ok';
-    msg.textContent = "Thanks — your application has been submitted. We'll be in touch shortly.";
-    form.reset();
-    Object.values(fileGroups).forEach(g => g.reset());
-    document.querySelectorAll('.repeat-item').forEach(el => el.remove());
-    document.getElementById('ai_sourceDetails').innerHTML = '';
-    document.getElementById('ai2_sourceDetails').innerHTML = '';
-    document.getElementById('assetDetails').innerHTML = '';
-    document.getElementById('expenseDetails').innerHTML = '';
-    wireYesNoToggles(document);
-    updateEmploymentVisibility1();
-    updateEmploymentVisibility2();
-    syncOwnerVisibility();
-    document.getElementById('savingsBlock').classList.add('hidden');
-    document.getElementById('personalLoansBlock').classList.add('hidden');
-    document.getElementById('creditCardsBlock').classList.add('hidden');
-    document.getElementById('expenseOtherField').classList.add('hidden');
+    const id = isEdit ? EDIT_ID : data.id;
+    window.location.href = `/apply/${encodeURIComponent(COMPANY_SLUG)}/upload/${encodeURIComponent(id)}`;
   } catch (err) {
     msg.className = 'msg err';
     msg.textContent = err.message;
-  } finally {
     submitBtn.disabled = false;
-    submitBtn.textContent = 'Submit application';
+    submitBtn.textContent = EDIT_ID ? 'Save & continue to documents →' : 'Continue to document upload →';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 });
+
+resolveCompany();
+loadDraftForEdit();
+updateFormProgress();
 </script>
 
 </body>

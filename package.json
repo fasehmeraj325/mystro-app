@@ -12,6 +12,7 @@
   "dependencies": {
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.10.0",
+    "compression": "^1.8.1",
     "connect-pg-simple": "^10.0.0",
     "disposable-email-domains": "^1.0.62",
     "dotenv": "^17.4.2",

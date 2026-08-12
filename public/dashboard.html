@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%234f46e5%27/%3E%3C/svg%3E" />
 <title>Dashboard — Docklio</title>
 <link rel="stylesheet" href="/style.css" />
 </head>
@@ -44,19 +45,21 @@
   <input type="text" id="searchInput" class="search-input" placeholder="Search by client name..." />
 
   <div class="card" style="padding:0; overflow:hidden;">
-    <table id="table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Email</th>
-          <th>Phone</th>
-          <th>Docs</th>
-          <th>Status</th>
-          <th>Submitted</th>
-        </tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
+    <div class="table-scroll">
+      <table id="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Progress</th>
+            <th>Status</th>
+            <th>Submitted</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
     <div id="empty" class="empty hidden">No submissions yet. Share your intake form link with clients to get started.</div>
     <div id="noMatches" class="empty hidden">No clients match "<span id="noMatchesQuery"></span>".</div>
   </div>
@@ -69,7 +72,8 @@
         <h2 id="mName" style="margin:0 0 4px;font-size:19px;"></h2>
         <div id="mEmail" style="color:var(--muted);font-size:13px;"></div>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div class="progress-pair" id="mProgress"></div>
         <a id="pdfBtn" class="pdf-btn" href="#" target="_blank">⬇ Download Client Form (PDF)</a>
         <button class="modal-close" id="closeModal">&times;</button>
       </div>
@@ -140,6 +144,23 @@ function badgeClass(status) {
   return status.replace(' ', '-');
 }
 
+function statusLabel(status) {
+  return status === 'Draft' ? 'In Progress' : status;
+}
+
+function miniProgressBars(s) {
+  const form = s.formProgress || { percent: 0 };
+  const docs = s.docProgress || { percent: 0 };
+  return `
+    <div class="mini-progress-row">
+      <div class="mini-progress-lbl"><span>Form</span><span>${form.percent}%</span></div>
+      <div class="mini-progress-track"><div class="mini-progress-fill" style="width:${form.percent}%"></div></div>
+      <div class="mini-progress-lbl"><span>Docs</span><span>${docs.percent}%</span></div>
+      <div class="mini-progress-track"><div class="mini-progress-fill docs" style="width:${docs.percent}%"></div></div>
+    </div>
+  `;
+}
+
 let allSubmissions = [];
 
 async function loadTable() {
@@ -172,8 +193,8 @@ function renderTable(list) {
         <td>${escapeHtml(s.fullName)}</td>
         <td>${s.email ? escapeHtml(s.email) : '—'}</td>
         <td>${s.phone ? escapeHtml(s.phone) : '—'}</td>
-        <td>${s.fileCount} file${s.fileCount === 1 ? '' : 's'}</td>
-        <td><span class="badge ${badgeClass(s.status)}">${s.status}</span></td>
+        <td>${miniProgressBars(s)}</td>
+        <td><span class="badge ${badgeClass(s.status)}">${statusLabel(s.status)}</span></td>
         <td>${fmtDate(s.submittedAt)}</td>
       `;
       tr.addEventListener('click', () => openModal(s.id));
@@ -193,11 +214,12 @@ function applySearch() {
 document.getElementById('searchInput').addEventListener('input', applySearch);
 
 function renderStats(list) {
-  const counts = { New: 0, 'In Review': 0, Approved: 0, Rejected: 0 };
+  const counts = { Draft: 0, New: 0, 'In Review': 0, Approved: 0, Rejected: 0 };
   for (const s of list) counts[s.status] = (counts[s.status] || 0) + 1;
 
   const stats = [
     { num: list.length, lbl: 'Total submissions' },
+    { num: counts['Draft'], lbl: 'In progress' },
     { num: counts['New'], lbl: 'New' },
     { num: counts['In Review'], lbl: 'In review' },
     { num: counts['Approved'], lbl: 'Approved' },
@@ -282,6 +304,8 @@ function renderSections(s) {
       ['Pre-tax income (gross)', e.grossIncome ? fmtMoney(e.grossIncome) : undefined],
       ['Employer address', e.employerAddress], ['Employer contact', e.employerContactName],
       ['Employer number', e.employerNumber],
+      ['Previous employer', e.previousEmployerName], ['Previous occupation', e.previousOccupation],
+      ['Previous employment start', e.previousEmploymentStartDate], ['Previous employment stop', e.previousEmploymentStopDate],
     ]));
 
     const se = e.selfEmployed || {};
@@ -345,6 +369,8 @@ function renderSections(s) {
       ['Pre-tax income (gross)', se2.grossIncome ? fmtMoney(se2.grossIncome) : undefined],
       ['Employer address', se2.employerAddress], ['Employer contact', se2.employerContactName],
       ['Employer number', se2.employerNumber],
+      ['Previous employer', se2.previousEmployerName], ['Previous occupation', se2.previousOccupation],
+      ['Previous employment start', se2.previousEmploymentStartDate], ['Previous employment stop', se2.previousEmploymentStopDate],
     ]);
     const sse = se2.selfEmployed || {};
     if (se2.employmentType === 'Self-employed' && Object.keys(sse).length) {
@@ -463,6 +489,7 @@ async function openModal(id) {
   document.getElementById('mName').textContent = s.fullName;
   document.getElementById('mEmail').textContent = s.email;
   document.getElementById('pdfBtn').href = `/api/submissions/${s.id}/pdf`;
+  document.getElementById('mProgress').innerHTML = miniProgressBars(s);
 
   document.getElementById('sections').innerHTML = renderSections(s);
 
