@@ -180,4 +180,62 @@ async function sendPasswordReset({ toEmail, resetUrl }) {
   });
 }
 
-module.exports = { sendClientInvite, sendVerificationCode, sendPasswordReset, APP_URL };
+// Sent to the company's own admin(s) when a client finishes an application —
+// so they don't have to keep refreshing the dashboard to notice new leads.
+// flaggedDocs (optional): plain-text notes from the document sanity-check
+// (e.g. "Driver's Licence: image looks blurry") to surface right in the
+// email instead of only after opening the dashboard.
+async function sendNewApplicationNotification({ toEmail, businessName, clientName, clientEmail, dashboardUrl, flaggedDocs }) {
+  const transporter = getTransporter();
+  const safeClientName = escapeHtml(clientName);
+  const safeClientEmail = escapeHtml(clientEmail);
+
+  const flagsHtml =
+    flaggedDocs && flaggedDocs.length
+      ? `
+      <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:14px 16px; margin:20px 0;">
+        <p style="margin:0 0 6px; font-size:13px; font-weight:700; color:#92400e;">Worth a look before you review:</p>
+        <ul style="margin:0; padding-left:18px; font-size:13px; color:#92400e;">
+          ${flaggedDocs.map((f) => `<li>${escapeHtml(f)}</li>`).join("")}
+        </ul>
+      </div>`
+      : "";
+  const flagsText = flaggedDocs && flaggedDocs.length ? `\nWorth a look before you review:\n${flaggedDocs.map((f) => `- ${f}`).join("\n")}\n` : "";
+
+  const html = `
+    <div style="font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; max-width: 540px; margin: 0 auto; color: #1a1d29;">
+      <p style="font-size:15px;">Hi,</p>
+      <p style="font-size:15px; line-height:1.6;">
+        <strong>${safeClientName}</strong> (${safeClientEmail}) just finished their application to ${escapeHtml(businessName)}.
+      </p>
+      ${flagsHtml}
+      <p style="margin: 28px 0;">
+        <a href="${dashboardUrl}" style="background:#3a3aff; color:#fff; text-decoration:none; padding:12px 24px; border-radius:8px; font-weight:600; font-size:15px; display:inline-block;">
+          View application
+        </a>
+      </p>
+      <p style="font-size:13px; color:#6b7080; line-height:1.5;">
+        If the button above doesn't work, copy and paste this link into your browser:<br />
+        <a href="${dashboardUrl}" style="color:#3a3aff;">${dashboardUrl}</a>
+      </p>
+    </div>
+  `;
+
+  const text = [
+    "Hi,",
+    "",
+    `${clientName} (${clientEmail}) just finished their application to ${businessName}.`,
+    flagsText,
+    dashboardUrl,
+  ].join("\n");
+
+  await transporter.sendMail({
+    from: `"${PLATFORM_NAME}" <${process.env.SMTP_USER}>`,
+    to: toEmail,
+    subject: `New application from ${clientName}`,
+    text,
+    html,
+  });
+}
+
+module.exports = { sendClientInvite, sendVerificationCode, sendPasswordReset, sendNewApplicationNotification, APP_URL };

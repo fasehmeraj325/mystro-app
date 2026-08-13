@@ -138,17 +138,24 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+function hasQualityIssue(qc) {
+  return Boolean(qc) && (qc.matchesType === false || qc.isLegible === false || qc.appearsExpired === true);
+}
+
 function renderUploadedItem(field, file, index) {
-  const row = document.createElement('div');
-  row.className = 'uploaded-item';
-  row.innerHTML = `
-    <span class="uploaded-check">✓</span>
-    <span class="uploaded-name">${escapeHtml(file.originalName)}</span>
-    <span class="uploaded-meta">${fmtSize(file.size)}</span>
-    <button type="button" class="remove-slot" title="Remove">&times;</button>
+  const wrapper = document.createElement('div');
+  const issue = hasQualityIssue(file.qualityCheck);
+  wrapper.innerHTML = `
+    <div class="uploaded-item">
+      <span class="uploaded-check">✓</span>
+      <span class="uploaded-name">${escapeHtml(file.originalName)}</span>
+      <span class="uploaded-meta">${fmtSize(file.size)}</span>
+      <button type="button" class="remove-slot" title="Remove">&times;</button>
+    </div>
+    ${issue ? `<div class="uploaded-warning">⚠ ${escapeHtml(file.qualityCheck.note || 'This file might have an issue — consider re-uploading.')}</div>` : ''}
   `;
-  row.querySelector('.remove-slot').addEventListener('click', () => removeFile(field, index));
-  return row;
+  wrapper.querySelector('.remove-slot').addEventListener('click', () => removeFile(field, index));
+  return wrapper;
 }
 
 async function removeFile(field, index) {

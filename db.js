@@ -175,6 +175,14 @@ async function getUserById(id) {
   return rows[0] ? toUser(rows[0]) : null;
 }
 
+// Active users for a company — currently always exactly one (the admin
+// created at signup), but written to return all of them so it keeps working
+// unchanged if team accounts are added later.
+async function getActiveUsersByCompany(companyId) {
+  const { rows } = await pool.query("SELECT * FROM users WHERE company_id = $1 AND status = 'active'", [companyId]);
+  return rows.map(toUser);
+}
+
 async function activateUser(id) {
   await pool.query("UPDATE users SET status = 'active' WHERE id = $1", [id]);
 }
@@ -415,6 +423,7 @@ module.exports = {
   createUser,
   getUserByEmail,
   getUserById,
+  getActiveUsersByCompany,
   activateUser,
   setUserPassword,
   // verification

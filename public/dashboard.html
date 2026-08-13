@@ -509,9 +509,12 @@ async function openModal(id) {
       return list.map((f, i) => {
         const sizeKb = Math.round(f.size / 1024);
         const heading = list.length > 1 ? `${f.label} (${i + 1})` : f.label;
+        const qc = f.qualityCheck;
+        const issue = qc && (qc.matchesType === false || qc.isLegible === false || qc.appearsExpired === true);
         return `<div class="doc-block">
           <div class="doc-heading">${escapeHtml(heading)}</div>
           <div class="doc-meta">${escapeHtml(f.originalName)} · ${sizeKb} KB</div>
+          ${issue ? `<div class="uploaded-warning">⚠ ${escapeHtml(qc.note || 'Possible issue with this document.')}</div>` : ''}
           <a class="doc-download" href="/api/submissions/${s.id}/files/${k}/${i}" target="_blank">Download ↓</a>
         </div>`;
       }).join('');
@@ -640,7 +643,10 @@ document.getElementById('copyLinkBtn').addEventListener('click', () => {
 });
 
 loadCompanyLink();
-loadTable();
+loadTable().then(() => {
+  const openId = new URLSearchParams(window.location.search).get('open');
+  if (openId) openModal(openId);
+});
 </script>
 
 </body>

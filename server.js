@@ -5,6 +5,7 @@ const compression = require("compression");
 const helmet = require("helmet");
 const multer = require("multer");
 const archiver = require("archiver");
+const Anthropic = require("@anthropic-ai/sdk");
 const https = require("https");
 const cloudinary = require("cloudinary").v2;
 const rateLimit = require("express-rate-limit");
@@ -17,7 +18,7 @@ const path = require("path");
 const { randomUUID, randomInt, randomBytes, createHash } = require("crypto");
 const db = require("./db");
 const { buildClientPdf } = require("./pdf");
-const { sendClientInvite, sendVerificationCode, sendPasswordReset, APP_URL } = require("./mail");
+const { sendClientInvite, sendVerificationCode, sendPasswordReset, sendNewApplicationNotification, APP_URL } = require("./mail");
 const { FILE_FIELDS, REQUIRED_FILE_FIELDS, computeFormProgress, computeDocProgress } = require("./public/progress");
 
 const APP_DIR = __dirname;
@@ -104,6 +105,107 @@ const upload = multer({
     cb(null, true);
   },
 });
+
+// --- AI document sanity-check --------------------------------------------
+// Optional: entirely skipped (returns null, never blocks an upload) unless
+// ANTHROPIC_API_KEY is set. HEIC isn't in this list even though uploads
+// accept it — vision models don't reliably support it yet.
+const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
+const AI_CHECKABLE_MIME_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
+
+function fetchAsBuffer(url, redirectsLeft = 2) {
+  return new Promise((resolve, reject) => {
+    https
+      .get(url, (response) => {
+        if ([301, 302, 303, 307, 308].includes(response.statusCode) && response.headers.location && redirectsLeft > 0) {
+          response.resume();
+          return fetchAsBuffer(response.headers.location, redirectsLeft - 1).then(resolve, reject);
+        }
+        if (response.statusCode !== 200) {
+          response.resume();
+          return reject(new Error(`Download failed with status ${response.statusCode}`));
+        }
+        const chunks = [];
+        response.on("data", (c) => chunks.push(c));
+        response.on("end", () => resolve(Buffer.concat(chunks)));
+        response.on("error", reject);
+      })
+      .on("error", reject);
+  });
+}
+
+// Best-effort read on a freshly uploaded document: does it look like the
+// right document type, is it legible, and (for ID documents) does it look
+// expired? Never throws and never blocks the upload — a failed or skipped
+// check just means no quality info gets attached, not a rejected file.
+async function checkDocumentQuality({ publicId, resourceType, format, mime, fieldLabel }) {
+  if (!anthropic || !AI_CHECKABLE_MIME_TYPES.has(mime)) return null;
+  try {
+    const url = cloudinary.utils.private_download_url(publicId, format, { resource_type: resourceType, type: "authenticated" });
+    const buffer = await fetchAsBuffer(url);
+
+    const contentBlock =
+      mime === "application/pdf"
+        ? { type: "document", source: { type: "base64", media_type: mime, data: buffer.toString("base64") } }
+        : { type: "image", source: { type: "base64", media_type: mime, data: buffer.toString("base64") } };
+
+    const message = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 200,
+      messages: [
+        {
+          role: "user",
+          content: [
+            contentBlock,
+            {
+              type: "text",
+              text:
+                `This file was uploaded by a mortgage applicant as their "${fieldLabel}". Today's date is ${new Date().toISOString().slice(0, 10)}. ` +
+                `Reply with ONLY a JSON object, no other text, matching this shape exactly: ` +
+                `{"matchesType": true|false, "isLegible": true|false, "appearsExpired": true|false|null, "note": "short plain-English reason, empty string if no issues"}. ` +
+                `Set "appearsExpired" to null unless this document type normally has a visible expiry/issue date (e.g. driver's licence, passport) — otherwise judge it against today's date.`,
+            },
+          ],
+        },
+      ],
+    });
+
+    const textBlock = message.content.find((b) => b.type === "text");
+    const jsonMatch = textBlock && textBlock.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    const parsed = JSON.parse(jsonMatch[0]);
+    return {
+      matchesType: Boolean(parsed.matchesType),
+      isLegible: Boolean(parsed.isLegible),
+      appearsExpired: parsed.appearsExpired === null || parsed.appearsExpired === undefined ? null : Boolean(parsed.appearsExpired),
+      note: typeof parsed.note === "string" ? parsed.note.slice(0, 200) : "",
+    };
+  } catch (err) {
+    console.error(`Document quality check failed (${fieldLabel}):`, err.message);
+    return null;
+  }
+}
+
+// Human-readable notes for any uploaded file whose quality check found an
+// issue — used in the new-application email so a company sees it without
+// having to open every document.
+function collectFlaggedDocs(files) {
+  const notes = [];
+  for (const field of FILE_FIELDS) {
+    const entry = files && files[field.name];
+    const list = Array.isArray(entry) ? entry : entry ? [entry] : [];
+    list.forEach((f) => {
+      const qc = f.qualityCheck;
+      if (!qc) return;
+      const issues = [];
+      if (qc.matchesType === false) issues.push("doesn't look like the right document type");
+      if (qc.isLegible === false) issues.push("hard to read/blurry");
+      if (qc.appearsExpired === true) issues.push("appears expired");
+      if (issues.length) notes.push(`${field.label}: ${qc.note || issues.join(", ")}`);
+    });
+  }
+  return notes;
+}
 
 // The draft's own id doubles as the Cloudinary folder key — set it on the
 // request before multer's storage engine runs so uploads for a given
@@ -596,7 +698,7 @@ function extractContact(clientInfo) {
 // not the storage details a signed download would require.
 function publicFileMeta(entry) {
   const list = Array.isArray(entry) ? entry : entry ? [entry] : [];
-  return list.map((f) => ({ label: f.label, originalName: f.originalName, size: f.size, mime: f.mime }));
+  return list.map((f) => ({ label: f.label, originalName: f.originalName, size: f.size, mime: f.mime, qualityCheck: f.qualityCheck || null }));
 }
 
 function submissionResponse(submission) {
@@ -743,6 +845,15 @@ app.post(
       size: req.file.size,
       mime: req.file.mimetype,
     };
+    const qualityCheck = await checkDocumentQuality({
+      publicId: fileMeta.publicId,
+      resourceType: fileMeta.resourceType,
+      format: fileMeta.format,
+      mime: fileMeta.mime,
+      fieldLabel: req.field.label,
+    });
+    if (qualityCheck) fileMeta.qualityCheck = qualityCheck;
+
     const updated = await db.appendSubmissionFile(req.company.id, req.params.id, req.field.name, fileMeta);
     res.status(201).json(submissionResponse(updated));
   })
@@ -798,6 +909,27 @@ app.post(
 
     const updated = await db.updateSubmissionStatus(company.id, req.params.id, "New");
     res.json({ ok: true, id: updated.id });
+
+    // Best-effort: a company should still get their finished application
+    // even if notifying them about it fails (SMTP down, etc).
+    try {
+      const recipients = await db.getActiveUsersByCompany(company.id);
+      const flaggedDocs = collectFlaggedDocs(updated.files);
+      await Promise.all(
+        recipients.map((user) =>
+          sendNewApplicationNotification({
+            toEmail: user.email,
+            businessName: company.businessName || company.name,
+            clientName: updated.fullName,
+            clientEmail: updated.email,
+            dashboardUrl: `${APP_URL}/dashboard.html?open=${updated.id}`,
+            flaggedDocs,
+          })
+        )
+      );
+    } catch (err) {
+      console.error("Failed to send new-application notification:", err.message);
+    }
   })
 );
 
