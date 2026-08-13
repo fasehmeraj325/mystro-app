@@ -7,21 +7,88 @@
 <title>Docklio — Client onboarding for lenders &amp; brokers</title>
 <link rel="stylesheet" href="/style.css" />
 <style>
+  :root {
+    --premium-accent: #7c6cf0;
+    --premium-accent-bright: #9b8bff;
+    --premium-card: #14151f;
+    --premium-card-border: rgba(255,255,255,0.08);
+    --premium-muted: #9497a8;
+  }
+
+  body { background: #0a0a10; }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: rgba(10,10,16,0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .topbar nav a.cta-link {
+    color: #fff;
+    background: var(--premium-accent);
+    padding: 9px 18px;
+    border-radius: 999px;
+    font-weight: 600;
+    transition: background .15s, transform .1s;
+  }
+  .topbar nav a.cta-link:hover { background: var(--premium-accent-bright); }
+
+  .glow-wrap {
+    position: relative;
+    overflow: hidden;
+  }
+  .glow-wrap::before {
+    content: "";
+    position: absolute;
+    top: -320px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 900px;
+    height: 640px;
+    background: radial-gradient(circle, rgba(124,108,240,0.35), rgba(124,108,240,0.08) 45%, transparent 70%);
+    pointer-events: none;
+  }
+
   .hero {
-    max-width: 900px;
+    position: relative;
+    max-width: 860px;
     margin: 0 auto;
-    padding: 64px 20px 40px;
+    padding: 110px 20px 56px;
     text-align: center;
   }
+  .eyebrow {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--premium-accent-bright);
+    margin-bottom: 22px;
+  }
   .hero h1 {
-    font-size: 38px;
-    line-height: 1.15;
-    margin: 0 0 16px;
+    font-size: 54px;
+    font-weight: 800;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    margin: 0 0 22px;
+    color: #fff;
+  }
+  .hero h1 em {
+    font-style: italic;
+    font-weight: 800;
+    background: linear-gradient(90deg, var(--premium-accent-bright), var(--premium-accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
   .hero .subtitle {
-    font-size: 17px;
-    max-width: 640px;
-    margin: 0 auto 32px;
+    font-size: 18px;
+    line-height: 1.6;
+    max-width: 600px;
+    margin: 0 auto 36px;
+    color: var(--premium-muted);
   }
   .hero-actions {
     display: flex;
@@ -29,79 +96,133 @@
     justify-content: center;
     flex-wrap: wrap;
   }
-  .hero-actions .secondary { margin-bottom: 0; }
+  .pill-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 15px 30px;
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    transition: transform .15s, box-shadow .15s, background .15s;
+  }
+  .pill-btn.primary {
+    background: var(--premium-accent);
+    color: #fff;
+    box-shadow: 0 8px 30px rgba(124,108,240,0.45);
+  }
+  .pill-btn.primary:hover { background: var(--premium-accent-bright); transform: translateY(-1px); }
+  .pill-btn.ghost {
+    background: rgba(255,255,255,0.04);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.14);
+  }
+  .pill-btn.ghost:hover { background: rgba(255,255,255,0.08); }
+
+  .section {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 40px 20px;
+  }
+  .section-head {
+    text-align: center;
+    max-width: 620px;
+    margin: 0 auto 40px;
+  }
+  .section-head .eyebrow { margin-bottom: 14px; }
+  .section-head h2 {
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: #fff;
+    margin: 0 0 12px;
+  }
+  .section-head p { color: var(--premium-muted); font-size: 15px; margin: 0; line-height: 1.6; }
 
   .pillars {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 20px 20px 60px;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 20px;
   }
   @media (max-width: 760px) {
-    .pillars { grid-template-columns: 1fr; }
-    .hero h1 { font-size: 28px; }
+    .pillars, .how-steps { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 34px; }
+    .hero { padding-top: 88px; }
   }
   .pillar {
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 26px 22px;
-    box-shadow: var(--shadow);
-    color: var(--ink);
+    position: relative;
+    background: var(--premium-card);
+    border: 1px solid var(--premium-card-border);
+    border-radius: 18px;
+    padding: 28px 24px;
+    transition: border-color .15s, transform .15s;
+  }
+  .pillar:hover { border-color: rgba(124,108,240,0.4); transform: translateY(-2px); }
+  .pillar .index {
+    position: absolute;
+    top: 22px;
+    right: 22px;
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: .05em;
   }
   .pillar .icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: #eef2ff;
-    color: var(--brand);
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: rgba(124,108,240,0.15);
+    color: var(--premium-accent-bright);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
-    margin-bottom: 14px;
+    font-size: 19px;
+    margin-bottom: 18px;
   }
-  .pillar h3 { margin: 0 0 8px; font-size: 17px; }
-  .pillar p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .pillar h3 { margin: 0 0 8px; font-size: 18px; font-weight: 700; color: #fff; }
+  .pillar p { margin: 0; color: var(--premium-muted); font-size: 14px; line-height: 1.6; }
 
-  .how {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 0 20px 70px;
-  }
   .how-steps {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
-    margin-top: 28px;
+    gap: 20px;
   }
-  @media (max-width: 760px) {
-    .how-steps { grid-template-columns: 1fr; }
+  .how-step {
+    background: var(--premium-card);
+    border: 1px solid var(--premium-card-border);
+    border-radius: 18px;
+    padding: 26px 24px;
   }
   .how-step .num {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 30px;
-    height: 30px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
-    background: var(--brand);
-    color: #fff;
-    font-weight: 700;
+    background: rgba(124,108,240,0.15);
+    color: var(--premium-accent-bright);
+    font-weight: 800;
     font-size: 14px;
-    margin-bottom: 12px;
+    margin-bottom: 16px;
   }
-  .how-step h4 { margin: 0 0 6px; font-size: 15px; color: var(--page-text); }
-  .how-step p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .how-step h4 { margin: 0 0 8px; font-size: 15px; font-weight: 700; color: #fff; }
+  .how-step p { margin: 0; color: var(--premium-muted); font-size: 14px; line-height: 1.6; }
 
   .cta-band {
+    max-width: 1040px;
+    margin: 20px auto 90px;
+    padding: 56px 20px;
     text-align: center;
-    padding: 50px 20px 80px;
+    background: linear-gradient(180deg, rgba(124,108,240,0.12), rgba(124,108,240,0.02));
+    border: 1px solid rgba(124,108,240,0.25);
+    border-radius: 24px;
   }
-  .cta-band h2 { font-size: 24px; margin: 0 0 10px; }
-  .cta-band .subtitle { margin: 0 auto 24px; }
+  .cta-band h2 { font-size: 28px; font-weight: 800; color: #fff; margin: 0 0 12px; letter-spacing: -0.01em; }
+  .cta-band p { color: var(--premium-muted); margin: 0 auto 28px; font-size: 15px; }
 </style>
 </head>
 <body>
@@ -110,39 +231,55 @@
   <div class="brand"><span class="dot"></span> Docklio</div>
   <nav>
     <a href="/login.html">Log in</a>
-    <a href="/signup.html">Sign up</a>
+    <a href="/signup.html" class="cta-link">Sign up</a>
   </nav>
 </div>
 
-<div class="hero">
-  <h1>Client onboarding, without the back-and-forth</h1>
-  <p class="subtitle">Send clients one link. They fill in their details, upload every document you need, and you review it all — progress tracked, PDF-ready — from a single dashboard.</p>
-  <div class="hero-actions">
-    <a href="/signup.html"><button class="primary">Get started free</button></a>
-    <a href="/login.html"><button class="secondary">Log in</button></a>
+<div class="glow-wrap">
+  <div class="hero">
+    <span class="eyebrow">Client onboarding for brokers &amp; lenders</span>
+    <h1>Onboarding your clients will actually <em>finish</em>.</h1>
+    <p class="subtitle">Send one link. Your client fills in their details, uploads every document you need, and you get a complete, review-ready application — tracked from start to finish.</p>
+    <div class="hero-actions">
+      <a href="/signup.html" class="pill-btn primary">Get started free</a>
+      <a href="/login.html" class="pill-btn ghost">Log in</a>
+    </div>
   </div>
 </div>
 
-<div class="pillars">
-  <div class="pillar">
-    <div class="icon">✉</div>
-    <h3>Invite</h3>
-    <p>Email a client your branded application link directly from the dashboard, or share it yourself — no accounts required on their end.</p>
+<div class="section">
+  <div class="section-head">
+    <span class="eyebrow">What Docklio does</span>
+    <h2>Everything between the invite and the decision</h2>
+    <p>One flow, three parts — nothing lost in email threads or missing attachments.</p>
   </div>
-  <div class="pillar">
-    <div class="icon">📄</div>
-    <h3>File</h3>
-    <p>A full financial fact-find plus every document you need — ID, payslips, tax returns, statements — uploaded on a dedicated page with live progress.</p>
-  </div>
-  <div class="pillar">
-    <div class="icon">🏦</div>
-    <h3>Lend</h3>
-    <p>Review complete, PDF-ready applications in one dashboard — track status from New through Approved, with nothing missing when you start assessing.</p>
+  <div class="pillars">
+    <div class="pillar">
+      <span class="index">01</span>
+      <div class="icon">✉</div>
+      <h3>Invite</h3>
+      <p>Email a client your branded application link directly from the dashboard, or share it yourself — no accounts required on their end.</p>
+    </div>
+    <div class="pillar">
+      <span class="index">02</span>
+      <div class="icon">📄</div>
+      <h3>File</h3>
+      <p>A full financial fact-find plus every document you need — ID, payslips, tax returns, statements — uploaded on a dedicated page with live progress.</p>
+    </div>
+    <div class="pillar">
+      <span class="index">03</span>
+      <div class="icon">🏦</div>
+      <h3>Lend</h3>
+      <p>Review complete, PDF-ready applications in one dashboard — track status from New through Approved, with nothing missing when you start assessing.</p>
+    </div>
   </div>
 </div>
 
-<div class="how">
-  <h2 style="text-align:center; margin-bottom:0;">How it works</h2>
+<div class="section">
+  <div class="section-head">
+    <span class="eyebrow">How it works</span>
+    <h2>Three steps, no chasing</h2>
+  </div>
   <div class="how-steps">
     <div class="how-step">
       <div class="num">1</div>
@@ -164,8 +301,8 @@
 
 <div class="cta-band">
   <h2>Set up your company in minutes</h2>
-  <p class="subtitle">Free to start. Your own branded link, your own dashboard.</p>
-  <a href="/signup.html"><button class="primary">Create your account</button></a>
+  <p>Free to start. Your own branded link, your own dashboard.</p>
+  <a href="/signup.html" class="pill-btn primary">Create your account</a>
 </div>
 
 </body>
