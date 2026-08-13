@@ -23,7 +23,10 @@
       <h1>Submissions</h1>
       <p class="subtitle" style="margin-bottom:0;">Every client application, all in one place.</p>
     </div>
-    <a id="previewFormBtn" href="#" target="_blank" class="pdf-btn">👁 Preview client form</a>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <a id="exportAllBtn" href="/api/submissions/export-all" class="pdf-btn" title="Download every client's documents as one ZIP, one folder per client">⬇ Export all documents</a>
+      <a id="previewFormBtn" href="#" target="_blank" class="pdf-btn">👁 Preview client form</a>
+    </div>
   </div>
 
   <div class="stat-row" id="stats" style="margin-top:24px;"></div>
@@ -75,6 +78,7 @@
       <div style="display:flex;align-items:center;gap:16px;">
         <div class="progress-pair" id="mProgress"></div>
         <a id="pdfBtn" class="pdf-btn" href="#" target="_blank">⬇ Download Client Form (PDF)</a>
+        <a id="exportBtn" class="pdf-btn" href="#">⬇ Export documents (ZIP)</a>
         <button class="modal-close" id="closeModal">&times;</button>
       </div>
     </div>
@@ -489,6 +493,7 @@ async function openModal(id) {
   document.getElementById('mName').textContent = s.fullName;
   document.getElementById('mEmail').textContent = s.email;
   document.getElementById('pdfBtn').href = `/api/submissions/${s.id}/pdf`;
+  document.getElementById('exportBtn').href = `/api/submissions/${s.id}/export`;
   document.getElementById('mProgress').innerHTML = miniProgressBars(s);
 
   document.getElementById('sections').innerHTML = renderSections(s);

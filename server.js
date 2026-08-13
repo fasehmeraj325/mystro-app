@@ -4,6 +4,8 @@ const express = require("express");
 const compression = require("compression");
 const helmet = require("helmet");
 const multer = require("multer");
+const archiver = require("archiver");
+const https = require("https");
 const cloudinary = require("cloudinary").v2;
 const rateLimit = require("express-rate-limit");
 const session = require("express-session");
@@ -847,6 +849,95 @@ app.get("/api/submissions", asyncHandler(async (req, res) => {
   );
 }));
 
+// --- bulk document export (ZIP, one folder per client) --------------------
+// No OneDrive API integration here — that needs an Azure app registration
+// under the company's own Microsoft account, which isn't something we can
+// set up on their behalf. This gets the same practical result: point your
+// browser's download folder (or wherever you extract the ZIP) at your
+// OneDrive/Drive/Dropbox-synced folder, and every export lands there
+// automatically, no OAuth or stored credentials needed.
+
+function sanitizeFolderName(name) {
+  return (
+    String(name || "Unnamed")
+      .trim()
+      .replace(/[\/\\:*?"<>|]/g, "-")
+      .replace(/\s+/g, " ")
+      .slice(0, 80) || "Unnamed"
+  );
+}
+
+// Cloudinary's signed download URL sometimes replies with a redirect to the
+// actual asset URL — follow it so archiver gets the real file stream.
+function fetchAsStream(url, redirectsLeft = 2) {
+  return new Promise((resolve, reject) => {
+    https
+      .get(url, (response) => {
+        if ([301, 302, 303, 307, 308].includes(response.statusCode) && response.headers.location && redirectsLeft > 0) {
+          response.resume();
+          return fetchAsStream(response.headers.location, redirectsLeft - 1).then(resolve, reject);
+        }
+        if (response.statusCode !== 200) {
+          response.resume();
+          return reject(new Error(`Download failed with status ${response.statusCode}`));
+        }
+        resolve(response);
+      })
+      .on("error", reject);
+  });
+}
+
+async function addSubmissionToArchive(archive, submission, folderPrefix) {
+  for (const field of FILE_FIELDS) {
+    const entry = submission.files && submission.files[field.name];
+    const list = Array.isArray(entry) ? entry : entry ? [entry] : [];
+    for (let i = 0; i < list.length; i++) {
+      const fileMeta = list[i];
+      if (!fileMeta || !fileMeta.publicId) continue;
+      try {
+        const downloadUrl = cloudinary.utils.private_download_url(fileMeta.publicId, fileMeta.format, {
+          resource_type: fileMeta.resourceType,
+          type: "authenticated",
+        });
+        const stream = await fetchAsStream(downloadUrl);
+        const safeName = String(fileMeta.originalName || `${field.name}-${i + 1}`).replace(/[\/\\]/g, "-");
+        const prefix = list.length > 1 ? `${i + 1}-` : "";
+        archive.append(stream, { name: `${folderPrefix}/${field.label}/${prefix}${safeName}` });
+      } catch (err) {
+        console.error(`Skipping file in export (submission ${submission.id}, ${field.name}[${i}]):`, err.message);
+      }
+    }
+  }
+}
+
+// Every client with at least one document, zipped into one download —
+// one top-level folder per client, named after them.
+app.get("/api/submissions/export-all", asyncHandler(async (req, res) => {
+  const submissions = await db.listSubmissions(req.companyId);
+  const withFiles = submissions.filter((s) => s.files && Object.keys(s.files).length > 0);
+
+  res.setHeader("Content-Type", "application/zip");
+  res.setHeader("Content-Disposition", `attachment; filename="clients-${new Date().toISOString().slice(0, 10)}.zip"`);
+
+  const archive = archiver("zip", { zlib: { level: 9 } });
+  archive.on("error", (err) => {
+    console.error("Export-all archive error:", err.message);
+    if (!res.headersSent) res.status(500);
+    res.end();
+  });
+  archive.pipe(res);
+
+  const usedFolders = new Set();
+  for (const submission of withFiles) {
+    let folder = sanitizeFolderName(submission.fullName);
+    if (usedFolders.has(folder)) folder = `${folder} (${submission.id.slice(0, 8)})`;
+    usedFolders.add(folder);
+    await addSubmissionToArchive(archive, submission, folder);
+  }
+
+  await archive.finalize();
+}));
+
 // Full detail for one submission
 app.get("/api/submissions/:id", asyncHandler(async (req, res) => {
   const submission = await db.getSubmission(req.companyId, req.params.id);
@@ -925,6 +1016,27 @@ app.get("/api/submissions/:id/files/:field/:index", asyncHandler(async (req, res
   });
 
   res.redirect(downloadUrl);
+}));
+
+// One client's documents as a ZIP.
+app.get("/api/submissions/:id/export", asyncHandler(async (req, res) => {
+  const submission = await db.getSubmission(req.companyId, req.params.id);
+  if (!submission) return res.status(404).json({ error: "Not found" });
+
+  const folder = sanitizeFolderName(submission.fullName);
+  res.setHeader("Content-Type", "application/zip");
+  res.setHeader("Content-Disposition", `attachment; filename="${folder}.zip"`);
+
+  const archive = archiver("zip", { zlib: { level: 9 } });
+  archive.on("error", (err) => {
+    console.error("Export archive error:", err.message);
+    if (!res.headersSent) res.status(500);
+    res.end();
+  });
+  archive.pipe(res);
+
+  await addSubmissionToArchive(archive, submission, folder);
+  await archive.finalize();
 }));
 
 // Friendly text for multer's own error codes (file too large, wrong field,
