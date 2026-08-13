@@ -316,7 +316,7 @@ app.get("/apply/:slug/upload/:id", (req, res) => {
 });
 
 // No bare "/" landing page yet — send visitors to log in.
-app.get("/", (req, res) => res.redirect("/login.html"));
+app.get("/", (req, res) => res.sendFile(path.join(APP_DIR, "public", "index.html")));
 
 app.use(express.static(path.join(APP_DIR, "public")));
 
