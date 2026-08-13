@@ -869,6 +869,10 @@ function sanitizeFolderName(name) {
 
 // Cloudinary's signed download URL sometimes replies with a redirect to the
 // actual asset URL — follow it so archiver gets the real file stream.
+// Starts paused: an HTTP response stream begins flowing (and can drop its
+// earliest chunks) the instant something reads from it, so it must stay
+// paused until archiver's own pipe attaches and resumes it — otherwise a
+// concurrently-fetched file can end up empty in the finished zip.
 function fetchAsStream(url, redirectsLeft = 2) {
   return new Promise((resolve, reject) => {
     https
@@ -881,33 +885,54 @@ function fetchAsStream(url, redirectsLeft = 2) {
           response.resume();
           return reject(new Error(`Download failed with status ${response.statusCode}`));
         }
+        response.pause();
         resolve(response);
       })
       .on("error", reject);
   });
 }
 
-async function addSubmissionToArchive(archive, submission, folderPrefix) {
+function collectFileEntries(submission, folderPrefix) {
+  const entries = [];
   for (const field of FILE_FIELDS) {
     const entry = submission.files && submission.files[field.name];
     const list = Array.isArray(entry) ? entry : entry ? [entry] : [];
-    for (let i = 0; i < list.length; i++) {
-      const fileMeta = list[i];
-      if (!fileMeta || !fileMeta.publicId) continue;
+    list.forEach((fileMeta, i) => {
+      if (!fileMeta || !fileMeta.publicId) return;
+      const safeName = String(fileMeta.originalName || `${field.name}-${i + 1}`).replace(/[\/\\]/g, "-");
+      const prefix = list.length > 1 ? `${i + 1}-` : "";
+      entries.push({
+        fileMeta,
+        path: `${folderPrefix}/${field.label}/${prefix}${safeName}`,
+        label: `submission ${submission.id}, ${field.name}[${i}]`,
+      });
+    });
+  }
+  return entries;
+}
+
+// Fetches several files at once (bounded concurrency) instead of one at a
+// time — a many-file, many-client export can otherwise take long enough to
+// run into a host's request time limit (e.g. Vercel's serverless functions)
+// before it finishes streaming the zip.
+async function appendEntriesToArchive(archive, entries, concurrency = 5) {
+  let next = 0;
+  async function worker() {
+    while (next < entries.length) {
+      const entry = entries[next++];
       try {
-        const downloadUrl = cloudinary.utils.private_download_url(fileMeta.publicId, fileMeta.format, {
-          resource_type: fileMeta.resourceType,
+        const downloadUrl = cloudinary.utils.private_download_url(entry.fileMeta.publicId, entry.fileMeta.format, {
+          resource_type: entry.fileMeta.resourceType,
           type: "authenticated",
         });
         const stream = await fetchAsStream(downloadUrl);
-        const safeName = String(fileMeta.originalName || `${field.name}-${i + 1}`).replace(/[\/\\]/g, "-");
-        const prefix = list.length > 1 ? `${i + 1}-` : "";
-        archive.append(stream, { name: `${folderPrefix}/${field.label}/${prefix}${safeName}` });
+        archive.append(stream, { name: entry.path });
       } catch (err) {
-        console.error(`Skipping file in export (submission ${submission.id}, ${field.name}[${i}]):`, err.message);
+        console.error(`Skipping file in export (${entry.label}):`, err.message);
       }
     }
   }
+  await Promise.all(Array.from({ length: Math.min(concurrency, entries.length) }, worker));
 }
 
 // Every client with at least one document, zipped into one download —
@@ -928,13 +953,15 @@ app.get("/api/submissions/export-all", asyncHandler(async (req, res) => {
   archive.pipe(res);
 
   const usedFolders = new Set();
+  const entries = [];
   for (const submission of withFiles) {
     let folder = sanitizeFolderName(submission.fullName);
     if (usedFolders.has(folder)) folder = `${folder} (${submission.id.slice(0, 8)})`;
     usedFolders.add(folder);
-    await addSubmissionToArchive(archive, submission, folder);
+    entries.push(...collectFileEntries(submission, folder));
   }
 
+  await appendEntriesToArchive(archive, entries);
   await archive.finalize();
 }));
 
@@ -1035,7 +1062,7 @@ app.get("/api/submissions/:id/export", asyncHandler(async (req, res) => {
   });
   archive.pipe(res);
 
-  await addSubmissionToArchive(archive, submission, folder);
+  await appendEntriesToArchive(archive, collectFileEntries(submission, folder));
   await archive.finalize();
 }));
 
