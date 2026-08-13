@@ -47,6 +47,7 @@ a { color: var(--brand); }
   font-weight: 700;
   font-size: 18px;
   color: var(--page-text);
+  text-decoration: none;
 }
 
 .brand .dot {

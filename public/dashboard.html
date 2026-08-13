@@ -10,7 +10,7 @@
 <body>
 
 <div class="topbar">
-  <div class="brand"><span class="dot"></span> Docklio</div>
+  <a href="/" class="brand"><span class="dot"></span> Docklio</a>
   <nav>
     <a href="dashboard.html" class="active">Dashboard</a>
     <a href="#" id="logoutLink">Log out</a>
@@ -616,7 +616,7 @@ inviteForm.addEventListener('submit', async (e) => {
 document.getElementById('logoutLink').addEventListener('click', async (e) => {
   e.preventDefault();
   await fetch('/api/auth/logout', { method: 'POST' });
-  window.location.href = 'login.html';
+  window.location.href = '/';
 });
 
 async function loadCompanyLink() {
