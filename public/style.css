@@ -505,6 +505,7 @@ tbody tr:hover { background: #f6f7fd; }
 .overlay.hidden { display: none; }
 
 .modal {
+  position: relative;
   background: var(--card);
   border-radius: var(--radius);
   max-width: 620px;
@@ -520,15 +521,39 @@ tbody tr:hover { background: #f6f7fd; }
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 14px;
   margin-bottom: 18px;
+  padding-right: 30px;
 }
 
+.modal-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Fixed in the modal's corner regardless of how much else is in the header,
+   so it's never pushed off-screen by long buttons wrapping on narrow
+   screens — see .modal-head's padding-right, which reserves space for it. */
 .modal-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
   background: none;
   border: none;
-  font-size: 20px;
+  font-size: 22px;
+  line-height: 1;
   cursor: pointer;
   color: var(--muted);
+  z-index: 1;
+}
+
+@media (max-width: 620px) {
+  .modal-actions { width: 100%; }
+  .modal-actions .progress-pair { width: 100%; order: -1; }
+  .modal-actions .pdf-btn { flex: 1 1 auto; justify-content: center; text-align: center; }
 }
 
 .detail-grid {
@@ -643,6 +668,13 @@ tbody tr:hover { background: #f6f7fd; }
   color: #fff;
   background: var(--brand);
   border-color: var(--brand);
+}
+
+/* Keeps any programmatic/anchor scroll (e.g. a repeat-item's remove button
+   scrolled to the top) from landing underneath the sticky progress header.
+   Set on html, not body — html is the actual scrolling box for the page. */
+html:has(.progress-header) {
+  scroll-padding-top: 110px;
 }
 
 /* Sticky progress header shown on both client-facing pages */
