@@ -1,6 +1,17 @@
 const nodemailer = require("nodemailer");
 
-const APP_URL = (process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
+// A bare domain (no http(s):// prefix) here isn't just cosmetic — every link
+// built from APP_URL (invite emails, "share your link", the notification
+// email, password reset) becomes a *relative* URL instead of absolute, so
+// clicking one from within the app doubles the current page's origin into
+// the path (e.g. yourapp.com/yourapp.com/apply/slug, 404). Default the
+// scheme to https rather than fail outright, since a bare domain almost
+// always means someone pasted just the host into the env var.
+function normalizeAppUrl(raw) {
+  const trimmed = (raw || "http://localhost:3000").trim().replace(/\/$/, "");
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+const APP_URL = normalizeAppUrl(process.env.APP_URL);
 const PLATFORM_NAME = "Docklio";
 
 // businessName/senderName/toName are company-entered text (signup form, invite
