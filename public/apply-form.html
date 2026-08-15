@@ -949,6 +949,9 @@ async function resolveCompany() {
       document.documentElement.style.setProperty('--brand', company.brandColor);
       document.documentElement.style.setProperty('--brand-dark', company.brandColor);
     }
+    if (company.theme === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
   } catch (e) {
     document.getElementById('formWrap').classList.add('hidden');
     document.getElementById('progressHeader').classList.add('hidden');

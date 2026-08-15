@@ -60,6 +60,14 @@
           </div>
           <p class="hint" style="margin:6px 0 0;">Used for buttons and progress bars on your client-facing form. Leave blank for the default Docklio purple.</p>
         </div>
+        <div class="field">
+          <label for="theme">Client form theme</label>
+          <select id="theme">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+          <p class="hint" style="margin:6px 0 0;">Applies to the client-facing form and document upload pages only — your dashboard stays dark.</p>
+        </div>
       </div>
       <div class="actions">
         <button type="submit" class="primary" id="saveBtn">Save changes</button>
@@ -103,6 +111,7 @@ async function loadCompany() {
   document.getElementById('senderName').value = company.senderName || '';
   document.getElementById('brandColorPicker').value = company.brandColor || '#4f46e5';
   document.getElementById('brandColorHex').value = company.brandColor || '';
+  document.getElementById('theme').value = company.theme || 'dark';
   renderLogo(company.logoUrl);
 }
 
@@ -130,6 +139,7 @@ document.getElementById('brandingForm').addEventListener('submit', async (e) => 
         businessName: document.getElementById('businessName').value,
         senderName: document.getElementById('senderName').value,
         brandColor: document.getElementById('brandColorHex').value.trim(),
+        theme: document.getElementById('theme').value,
       }),
     });
     const data = await res.json();

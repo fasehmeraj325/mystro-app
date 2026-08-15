@@ -7,6 +7,8 @@
   --line: #e4e6ec;
   --line-soft: rgba(255,255,255,0.08);
   --page-text: #e9eaf3;
+  --pill-bg: rgba(255,255,255,0.06);
+  --glow-opacity: 0.20;
   --brand: #4f46e5;
   --brand-dark: #4338ca;
   --ok: #16a34a;
@@ -17,13 +19,29 @@
   --shadow: 0 10px 30px rgba(0,0,0,0.4);
 }
 
+/* Opt-in light theme for the client-facing pages — set by a company in
+   Settings (companies.theme) and applied via document.documentElement's
+   data-theme attribute. Cards were already white, so only the page-level
+   chrome (background, topbar, borders, glow) needs to flip; brand/status
+   colors stay the same on either theme. */
+html[data-theme="light"] {
+  --bg: #f5f6fa;
+  --bg-elevated: #ffffff;
+  --muted: #6b7280;
+  --line-soft: rgba(0,0,0,0.08);
+  --page-text: #1a1d29;
+  --pill-bg: rgba(0,0,0,0.04);
+  --glow-opacity: 0.10;
+  --shadow: 0 10px 30px rgba(0,0,0,0.10);
+}
+
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background: var(--bg);
-  background-image: radial-gradient(circle at 12% -10%, rgba(79,70,229,0.20), transparent 42%);
+  background-image: radial-gradient(circle at 12% -10%, rgba(79,70,229,var(--glow-opacity)), transparent 42%);
   background-attachment: fixed;
   color: var(--page-text);
   -webkit-font-smoothing: antialiased;
@@ -344,7 +362,8 @@ button.primary:disabled {
 
 .remove-item:hover { color: var(--bad); }
 
-button.secondary {
+.secondary {
+  display: inline-block;
   background: #fff;
   color: var(--brand);
   border: 1px solid var(--brand);
@@ -355,9 +374,10 @@ button.secondary {
   cursor: pointer;
   margin-bottom: 20px;
   transition: background .15s;
+  text-decoration: none;
 }
 
-button.secondary:hover { background: #eef2ff; }
+.secondary:hover { background: #eef2ff; }
 
 button.danger {
   background: #fff;
@@ -665,7 +685,7 @@ tbody tr:hover { background: #f6f7fd; }
   font-size: 12px;
   font-weight: 600;
   color: var(--muted);
-  background: rgba(255,255,255,0.06);
+  background: var(--pill-bg);
   border: 1px solid var(--line-soft);
   padding: 5px 12px;
   border-radius: 999px;
@@ -718,7 +738,7 @@ html:has(.progress-header) {
 .progress-track {
   height: 6px;
   border-radius: 999px;
-  background: rgba(255,255,255,0.08);
+  background: var(--pill-bg);
   overflow: hidden;
 }
 

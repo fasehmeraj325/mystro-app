@@ -238,6 +238,7 @@ async function loadBranding() {
     const res = await fetch(`/api/public/companies/${encodeURIComponent(COMPANY_SLUG)}`);
     if (!res.ok) return;
     const company = await res.json();
+    document.getElementById('brandName').textContent = company.businessName || company.name;
     if (company.logoUrl) {
       document.getElementById('brandLogo').src = company.logoUrl;
       document.getElementById('brandLogo').classList.remove('hidden');
@@ -246,6 +247,9 @@ async function loadBranding() {
     if (company.brandColor) {
       document.documentElement.style.setProperty('--brand', company.brandColor);
       document.documentElement.style.setProperty('--brand-dark', company.brandColor);
+    }
+    if (company.theme === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
     }
   } catch (e) {
     // Non-critical — the page still works with default branding.

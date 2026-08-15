@@ -692,6 +692,7 @@ app.get("/api/public/companies/:slug", asyncHandler(async (req, res) => {
     businessName: company.businessName,
     logoUrl: company.logoUrl || null,
     brandColor: company.brandColor || null,
+    theme: company.theme || "dark",
   });
 }));
 
@@ -707,14 +708,15 @@ app.get("/api/company", asyncHandler(async (req, res) => {
     senderName: company.senderName,
     logoUrl: company.logoUrl || null,
     brandColor: company.brandColor || null,
+    theme: company.theme || "dark",
     applyUrl: `${APP_URL}/apply/${company.slug}`,
   });
 }));
 
-// Update branding — business name, sender name, and/or brand color. Logo is
-// handled separately below since it's a file upload, not JSON.
+// Update branding — business name, sender name, brand color, and/or theme.
+// Logo is handled separately below since it's a file upload, not JSON.
 app.patch("/api/company", asyncHandler(async (req, res) => {
-  const { businessName, senderName, brandColor } = req.body || {};
+  const { businessName, senderName, brandColor, theme } = req.body || {};
   const fields = {};
   if (businessName !== undefined) {
     const trimmed = String(businessName).trim();
@@ -729,6 +731,10 @@ app.patch("/api/company", asyncHandler(async (req, res) => {
     }
     fields.brandColor = color;
   }
+  if (theme !== undefined) {
+    if (!["dark", "light"].includes(theme)) return res.status(400).json({ error: "Theme must be 'dark' or 'light'." });
+    fields.theme = theme;
+  }
 
   const updated = await db.updateCompanyBranding(req.companyId, fields);
   if (!updated) return res.status(404).json({ error: "Not found" });
@@ -737,6 +743,7 @@ app.patch("/api/company", asyncHandler(async (req, res) => {
     senderName: updated.senderName,
     logoUrl: updated.logoUrl || null,
     brandColor: updated.brandColor || null,
+    theme: updated.theme || "dark",
   });
 }));
 
