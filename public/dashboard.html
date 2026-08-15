@@ -17,6 +17,19 @@
     <a href="#" id="logoutLink">Log out</a>
   </nav>
 </div>
+<script>
+(function () {
+  try {
+    var cached = JSON.parse(localStorage.getItem('docklio_brand') || 'null');
+    if (cached && cached.name) document.getElementById('brandName').textContent = cached.name;
+    if (cached && cached.logoUrl) {
+      document.getElementById('brandLogo').src = cached.logoUrl;
+      document.getElementById('brandLogo').classList.remove('hidden');
+      document.getElementById('brandDot').classList.add('hidden');
+    }
+  } catch (e) {}
+})();
+</script>
 
 <div class="wrap wide">
   <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
@@ -619,6 +632,7 @@ inviteForm.addEventListener('submit', async (e) => {
 
 document.getElementById('logoutLink').addEventListener('click', async (e) => {
   e.preventDefault();
+  try { localStorage.removeItem('docklio_brand'); } catch (err) {}
   await fetch('/api/auth/logout', { method: 'POST' });
   window.location.href = '/';
 });
@@ -639,7 +653,11 @@ async function loadCompanyBranding() {
     document.getElementById('brandLogo').src = company.logoUrl;
     document.getElementById('brandLogo').classList.remove('hidden');
     document.getElementById('brandDot').classList.add('hidden');
+  } else {
+    document.getElementById('brandLogo').classList.add('hidden');
+    document.getElementById('brandDot').classList.remove('hidden');
   }
+  try { localStorage.setItem('docklio_brand', JSON.stringify({ name, logoUrl: company.logoUrl || '' })); } catch (e) {}
 }
 
 document.getElementById('copyLinkBtn').addEventListener('click', () => {

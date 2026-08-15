@@ -16,6 +16,23 @@
     <span class="step-pill">2 Documents</span>
   </div>
 </div>
+<script>
+(function () {
+  try {
+    var slugMatch = window.location.pathname.match(/^\/apply\/([^/]+)/);
+    if (!slugMatch) return;
+    var cached = JSON.parse(localStorage.getItem('docklio_brand_' + slugMatch[1]) || 'null');
+    if (!cached) return;
+    if (cached.name) document.getElementById('brandName').textContent = cached.name;
+    if (cached.logoUrl) {
+      document.getElementById('brandLogo').src = cached.logoUrl;
+      document.getElementById('brandLogo').classList.remove('hidden');
+      document.getElementById('brandDot').classList.add('hidden');
+    }
+    if (cached.theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+  } catch (e) {}
+})();
+</script>
 
 <div class="progress-header" id="progressHeader">
   <div class="progress-header-inner">
@@ -944,6 +961,9 @@ async function resolveCompany() {
       document.getElementById('brandLogo').src = company.logoUrl;
       document.getElementById('brandLogo').classList.remove('hidden');
       document.getElementById('brandDot').classList.add('hidden');
+    } else {
+      document.getElementById('brandLogo').classList.add('hidden');
+      document.getElementById('brandDot').classList.remove('hidden');
     }
     if (company.brandColor) {
       document.documentElement.style.setProperty('--brand', company.brandColor);
@@ -951,7 +971,16 @@ async function resolveCompany() {
     }
     if (company.theme === 'light') {
       document.documentElement.setAttribute('data-theme', 'light');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
     }
+    try {
+      localStorage.setItem('docklio_brand_' + COMPANY_SLUG, JSON.stringify({
+        name: company.businessName || company.name,
+        logoUrl: company.logoUrl || '',
+        theme: company.theme || 'dark',
+      }));
+    } catch (e) {}
   } catch (e) {
     document.getElementById('formWrap').classList.add('hidden');
     document.getElementById('progressHeader').classList.add('hidden');
