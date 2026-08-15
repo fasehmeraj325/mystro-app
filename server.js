@@ -5,7 +5,7 @@ const compression = require("compression");
 const helmet = require("helmet");
 const multer = require("multer");
 const archiver = require("archiver");
-const Anthropic = require("@anthropic-ai/sdk");
+const { GoogleGenAI } = require("@google/genai");
 const https = require("https");
 const cloudinary = require("cloudinary").v2;
 const rateLimit = require("express-rate-limit");
@@ -108,9 +108,10 @@ const upload = multer({
 
 // --- AI document sanity-check --------------------------------------------
 // Optional: entirely skipped (returns null, never blocks an upload) unless
-// ANTHROPIC_API_KEY is set. HEIC isn't in this list even though uploads
-// accept it — vision models don't reliably support it yet.
-const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }) : null;
+// GEMINI_API_KEY is set (free tier at aistudio.google.com — no card needed).
+// HEIC isn't in this list even though uploads accept it — vision models
+// don't reliably support it yet.
+const gemini = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
 const AI_CHECKABLE_MIME_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
 
 function fetchAsBuffer(url, redirectsLeft = 2) {
@@ -139,26 +140,19 @@ function fetchAsBuffer(url, redirectsLeft = 2) {
 // expired? Never throws and never blocks the upload — a failed or skipped
 // check just means no quality info gets attached, not a rejected file.
 async function checkDocumentQuality({ publicId, resourceType, format, mime, fieldLabel }) {
-  if (!anthropic || !AI_CHECKABLE_MIME_TYPES.has(mime)) return null;
+  if (!gemini || !AI_CHECKABLE_MIME_TYPES.has(mime)) return null;
   try {
     const url = cloudinary.utils.private_download_url(publicId, format, { resource_type: resourceType, type: "authenticated" });
     const buffer = await fetchAsBuffer(url);
 
-    const contentBlock =
-      mime === "application/pdf"
-        ? { type: "document", source: { type: "base64", media_type: mime, data: buffer.toString("base64") } }
-        : { type: "image", source: { type: "base64", media_type: mime, data: buffer.toString("base64") } };
-
-    const message = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 200,
-      messages: [
+    const response = await gemini.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [
         {
           role: "user",
-          content: [
-            contentBlock,
+          parts: [
+            { inlineData: { mimeType: mime, data: buffer.toString("base64") } },
             {
-              type: "text",
               text:
                 `This file was uploaded by a mortgage applicant as their "${fieldLabel}". Today's date is ${new Date().toISOString().slice(0, 10)}. ` +
                 `Reply with ONLY a JSON object, no other text, matching this shape exactly: ` +
@@ -170,8 +164,8 @@ async function checkDocumentQuality({ publicId, resourceType, format, mime, fiel
       ],
     });
 
-    const textBlock = message.content.find((b) => b.type === "text");
-    const jsonMatch = textBlock && textBlock.text.match(/\{[\s\S]*\}/);
+    const text = response.text || "";
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
     const parsed = JSON.parse(jsonMatch[0]);
     return {
