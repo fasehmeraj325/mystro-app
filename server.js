@@ -19,7 +19,7 @@ const { randomUUID, randomInt, randomBytes, createHash } = require("crypto");
 const db = require("./db");
 const { buildClientPdf } = require("./pdf");
 const { sendClientInvite, sendVerificationCode, sendPasswordReset, sendNewApplicationNotification, APP_URL } = require("./mail");
-const { FILE_FIELDS, REQUIRED_FILE_FIELDS, computeFormProgress, computeDocProgress } = require("./public/progress");
+const { FILE_FIELDS, REQUIRED_FILE_FIELDS, OPTIONAL_FORM_SECTIONS, computeFormProgress, computeDocProgress } = require("./public/progress");
 
 const APP_DIR = __dirname;
 const DISPOSABLE_DOMAINS = new Set(disposableDomains);
@@ -693,6 +693,8 @@ app.get("/api/public/companies/:slug", asyncHandler(async (req, res) => {
     logoUrl: company.logoUrl || null,
     brandColor: company.brandColor || null,
     theme: company.theme || "dark",
+    documentConfig: company.documentConfig || {},
+    formConfig: company.formConfig || {},
   });
 }));
 
@@ -709,14 +711,22 @@ app.get("/api/company", asyncHandler(async (req, res) => {
     logoUrl: company.logoUrl || null,
     brandColor: company.brandColor || null,
     theme: company.theme || "dark",
+    documentConfig: company.documentConfig || {},
+    formConfig: company.formConfig || {},
     applyUrl: `${APP_URL}/apply/${company.slug}`,
   });
 }));
 
-// Update branding — business name, sender name, brand color, and/or theme.
-// Logo is handled separately below since it's a file upload, not JSON.
+// Non-essential document types a company can turn off — driversLicence and
+// passport are excluded here since they're never optional.
+const CONFIGURABLE_FILE_FIELDS = FILE_FIELDS.filter((f) => !REQUIRED_FILE_FIELDS.includes(f.name)).map((f) => f.name);
+const OPTIONAL_FORM_SECTION_NAMES = OPTIONAL_FORM_SECTIONS.map((s) => s.name);
+
+// Update branding/customization — business name, sender name, brand color,
+// theme, and/or which documents/form sections this company uses. Logo is
+// handled separately below since it's a file upload, not JSON.
 app.patch("/api/company", asyncHandler(async (req, res) => {
-  const { businessName, senderName, brandColor, theme } = req.body || {};
+  const { businessName, senderName, brandColor, theme, documentConfig, formConfig } = req.body || {};
   const fields = {};
   if (businessName !== undefined) {
     const trimmed = String(businessName).trim();
@@ -735,6 +745,27 @@ app.patch("/api/company", asyncHandler(async (req, res) => {
     if (!["dark", "light"].includes(theme)) return res.status(400).json({ error: "Theme must be 'dark' or 'light'." });
     fields.theme = theme;
   }
+  if (documentConfig !== undefined) {
+    if (typeof documentConfig !== "object" || documentConfig === null || Array.isArray(documentConfig)) {
+      return res.status(400).json({ error: "Invalid document configuration." });
+    }
+    const clean = {};
+    for (const name of CONFIGURABLE_FILE_FIELDS) {
+      if (documentConfig[name] === false) clean[name] = false;
+    }
+    fields.documentConfig = clean;
+  }
+  if (formConfig !== undefined) {
+    if (typeof formConfig !== "object" || formConfig === null || Array.isArray(formConfig)) {
+      return res.status(400).json({ error: "Invalid form configuration." });
+    }
+    const sections = (formConfig.sections && typeof formConfig.sections === "object") ? formConfig.sections : {};
+    const cleanSections = {};
+    for (const name of OPTIONAL_FORM_SECTION_NAMES) {
+      if (sections[name] === false) cleanSections[name] = false;
+    }
+    fields.formConfig = { sections: cleanSections };
+  }
 
   const updated = await db.updateCompanyBranding(req.companyId, fields);
   if (!updated) return res.status(404).json({ error: "Not found" });
@@ -744,6 +775,8 @@ app.patch("/api/company", asyncHandler(async (req, res) => {
     logoUrl: updated.logoUrl || null,
     brandColor: updated.brandColor || null,
     theme: updated.theme || "dark",
+    documentConfig: updated.documentConfig || {},
+    formConfig: updated.formConfig || {},
   });
 }));
 
@@ -799,7 +832,9 @@ function publicFileMeta(entry) {
   return list.map((f) => ({ label: f.label, originalName: f.originalName, size: f.size, mime: f.mime, qualityCheck: f.qualityCheck || null }));
 }
 
-function submissionResponse(submission) {
+function submissionResponse(submission, company) {
+  const documentConfig = (company && company.documentConfig) || {};
+  const formConfig = (company && company.formConfig) || {};
   const files = {};
   for (const field of FILE_FIELDS) {
     if (submission.files && submission.files[field.name]) {
@@ -814,8 +849,10 @@ function submissionResponse(submission) {
     clientInfo: submission.clientInfo,
     files,
     finalized: submission.status !== "Draft",
-    formProgress: computeFormProgress(submission.clientInfo),
-    docProgress: computeDocProgress(submission.clientInfo, submission.files),
+    documentConfig,
+    formConfig,
+    formProgress: computeFormProgress(submission.clientInfo, formConfig),
+    docProgress: computeDocProgress(submission.clientInfo, submission.files, documentConfig),
   };
 }
 
@@ -880,7 +917,7 @@ app.get(
     if (!company || company.status !== "active") return res.status(404).json({ error: "Not found" });
     const submission = await db.getSubmission(company.id, req.params.id);
     if (!submission) return res.status(404).json({ error: "Application not found." });
-    res.json(submissionResponse(submission));
+    res.json(submissionResponse(submission, company));
   })
 );
 
@@ -901,7 +938,7 @@ app.patch(
     }
 
     const updated = await db.updateSubmissionClientInfo(company.id, req.params.id, { fullName, email, phone, clientInfo });
-    res.json(submissionResponse(updated));
+    res.json(submissionResponse(updated, company));
   })
 );
 
@@ -919,6 +956,10 @@ app.post(
 
     const field = FILE_FIELDS.find((f) => f.name === req.params.field);
     if (!field) return res.status(400).json({ error: "Unknown document type." });
+    const isRequired = REQUIRED_FILE_FIELDS.includes(field.name);
+    if (!isRequired && (company.documentConfig || {})[field.name] === false) {
+      return res.status(400).json({ error: "This document type isn't requested by this company." });
+    }
 
     const currentCount = Array.isArray(draft.files[field.name]) ? draft.files[field.name].length : 0;
     if (currentCount >= field.maxCount) {
@@ -953,7 +994,7 @@ app.post(
     if (qualityCheck) fileMeta.qualityCheck = qualityCheck;
 
     const updated = await db.appendSubmissionFile(req.company.id, req.params.id, req.field.name, fileMeta);
-    res.status(201).json(submissionResponse(updated));
+    res.status(201).json(submissionResponse(updated, req.company));
   })
 );
 
@@ -981,7 +1022,7 @@ app.delete(
         .catch((err) => console.error("Failed to remove upload:", err.message));
     }
 
-    res.json(submissionResponse(submission));
+    res.json(submissionResponse(submission, company));
   })
 );
 
@@ -1058,6 +1099,9 @@ app.post("/api/send-invite", async (req, res) => {
 
 // List submissions (summary, for dashboard table)
 app.get("/api/submissions", asyncHandler(async (req, res) => {
+  const company = await db.getCompanyById(req.companyId);
+  const documentConfig = (company && company.documentConfig) || {};
+  const formConfig = (company && company.formConfig) || {};
   const list = await db.listSubmissions(req.companyId);
   res.json(
     list.map((s) => ({
@@ -1071,8 +1115,8 @@ app.get("/api/submissions", asyncHandler(async (req, res) => {
         (sum, entry) => sum + (Array.isArray(entry) ? entry.length : entry ? 1 : 0),
         0
       ),
-      formProgress: computeFormProgress(s.clientInfo),
-      docProgress: computeDocProgress(s.clientInfo, s.files),
+      formProgress: computeFormProgress(s.clientInfo, formConfig),
+      docProgress: computeDocProgress(s.clientInfo, s.files, documentConfig),
       submittedAt: s.submittedAt,
       updatedAt: s.updatedAt,
     }))
@@ -1199,10 +1243,15 @@ app.get("/api/submissions/export-all", asyncHandler(async (req, res) => {
 app.get("/api/submissions/:id", asyncHandler(async (req, res) => {
   const submission = await db.getSubmission(req.companyId, req.params.id);
   if (!submission) return res.status(404).json({ error: "Not found" });
+  const company = await db.getCompanyById(req.companyId);
+  const documentConfig = (company && company.documentConfig) || {};
+  const formConfig = (company && company.formConfig) || {};
   res.json({
     ...submission,
-    formProgress: computeFormProgress(submission.clientInfo),
-    docProgress: computeDocProgress(submission.clientInfo, submission.files),
+    documentConfig,
+    formConfig,
+    formProgress: computeFormProgress(submission.clientInfo, formConfig),
+    docProgress: computeDocProgress(submission.clientInfo, submission.files, documentConfig),
   });
 }));
 
@@ -1248,7 +1297,8 @@ app.delete("/api/submissions/:id", asyncHandler(async (req, res) => {
 app.get("/api/submissions/:id/pdf", asyncHandler(async (req, res) => {
   const submission = await db.getSubmission(req.companyId, req.params.id);
   if (!submission) return res.status(404).json({ error: "Not found" });
-  buildClientPdf(res, submission);
+  const company = await db.getCompanyById(req.companyId);
+  buildClientPdf(res, submission, (company && company.formConfig) || {});
 }));
 
 // Download / view an uploaded file. :index selects which file when a field

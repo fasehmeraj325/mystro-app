@@ -332,6 +332,27 @@ button.primary:disabled {
 
 .check input[type=checkbox] { width: 16px; height: 16px; }
 
+.config-checklist {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 20px;
+}
+
+@media (max-width: 620px) {
+  .config-checklist { grid-template-columns: 1fr; }
+}
+
+.config-check { line-height: 1.4; }
+
+.config-check-locked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 400;
+  font-size: 14px;
+  color: var(--muted);
+}
+
 .income-source-detail {
   background: #fafbfe;
   border: 1px solid var(--line);

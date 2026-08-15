@@ -346,6 +346,7 @@
       </div>
     </div>
 
+    <div class="form-section" data-company-section="additionalIncome">
     <div class="section-title">Additional income</div>
     <div class="grid2">
       <div class="field">
@@ -381,6 +382,7 @@
         <label class="check"><input type="checkbox" value="Superannuation" /> Superannuation</label>
       </div>
       <div id="ai_sourceDetails"></div>
+    </div>
     </div>
 
     <div id="secondApplicantSection" class="hidden">
@@ -658,6 +660,7 @@
         </div>
       </div>
 
+      <div class="form-section" data-company-section="additionalIncome">
       <div class="subsection">Additional income</div>
       <div class="grid2">
         <div class="field">
@@ -694,8 +697,10 @@
         </div>
         <div id="ai2_sourceDetails"></div>
       </div>
+      </div>
     </div>
 
+    <div class="form-section" data-company-section="realEstate">
     <div class="section-title">Real estate assets</div>
     <div class="grid2">
       <div class="field">
@@ -769,7 +774,9 @@
       <div id="re_investmentList"></div>
       <button type="button" class="secondary" id="re_addInvestment">+ Add investment property</button>
     </div>
+    </div>
 
+    <div class="form-section" data-company-section="assets">
     <div class="section-title">Assets</div>
     <div class="field">
       <label>What assets do you own?</label>
@@ -789,7 +796,9 @@
       <div id="savingsList"></div>
       <button type="button" class="secondary" id="addSavings">+ Add savings account</button>
     </div>
+    </div>
 
+    <div class="form-section" data-company-section="liabilities">
     <div class="section-title">Liabilities</div>
     <div class="field">
       <label>What liabilities do you have?</label>
@@ -814,7 +823,9 @@
       <div id="creditCardsList"></div>
       <button type="button" class="secondary" id="addCreditCard">+ Add credit card</button>
     </div>
+    </div>
 
+    <div class="form-section" data-company-section="ongoingExpenses">
     <div class="section-title">Ongoing expenses</div>
     <div class="field">
       <label>Do you have any of the following ongoing commitments?</label>
@@ -831,6 +842,7 @@
     <div class="field hidden" id="expenseOtherField">
       <label for="oe_otherDescription">Describe other ongoing commitment(s)</label>
       <input type="text" id="oe_otherDescription" />
+    </div>
     </div>
 
     <div class="actions">
@@ -943,6 +955,18 @@ const COMPANY_SLUG = (() => {
 
 const EDIT_ID = new URLSearchParams(window.location.search).get('id');
 
+// Which optional fact-find sections this company has turned off — set once
+// resolveCompany() fetches the company, defaults to "everything on" so the
+// form works normally until that fetch resolves.
+let COMPANY_FORM_CONFIG = {};
+
+function applyFormSectionVisibility() {
+  document.querySelectorAll('[data-company-section]').forEach((el) => {
+    const enabled = DocklioProgress.isFormSectionEnabled(COMPANY_FORM_CONFIG, el.dataset.companySection);
+    el.classList.toggle('hidden', !enabled);
+  });
+}
+
 async function resolveCompany() {
   if (!COMPANY_SLUG) {
     document.getElementById('formWrap').classList.add('hidden');
@@ -981,6 +1005,9 @@ async function resolveCompany() {
         theme: company.theme || 'dark',
       }));
     } catch (e) {}
+    COMPANY_FORM_CONFIG = company.formConfig || {};
+    applyFormSectionVisibility();
+    updateFormProgress();
   } catch (e) {
     document.getElementById('formWrap').classList.add('hidden');
     document.getElementById('progressHeader').classList.add('hidden');
@@ -1239,6 +1266,7 @@ function val(id) { const el = document.getElementById(id); return el ? el.value 
 function setVal(id, v) { const el = document.getElementById(id); if (el && v !== undefined && v !== null) el.value = v; }
 
 function buildClientInfo() {
+  const sectionOn = (name) => DocklioProgress.isFormSectionEnabled(COMPANY_FORM_CONFIG, name);
   return {
     applicants: val('applicants'),
     secondApplicant: isJointApplication() ? {
@@ -1269,10 +1297,10 @@ function buildClientInfo() {
           natureOfBusiness: val('se2_natureOfBusiness'), abnAcn: val('se2_abnAcn'),
         },
       },
-      additionalIncome: {
+      additionalIncome: sectionOn('additionalIncome') ? {
         fromEmployment: val('ai2_fromEmployment'), sources: checkedValues('ai2_sourceChecks'),
         sourceDetails: collectSourceDetails('ai2_sourceDetails'), fromGovernment: val('ai2_fromGovernment'), fromInvestments: val('ai2_fromInvestments'),
-      },
+      } : undefined,
     } : null,
     personal: {
       title: val('p_title'), firstName: val('p_firstName'), surname: val('p_surname'), lastName: val('p_lastName'),
@@ -1300,11 +1328,11 @@ function buildClientInfo() {
         natureOfBusiness: val('se_natureOfBusiness'), abnAcn: val('se_abnAcn'),
       },
     },
-    additionalIncome: {
+    additionalIncome: sectionOn('additionalIncome') ? {
       fromEmployment: val('ai_fromEmployment'), sources: checkedValues('ai_sourceChecks'),
       sourceDetails: collectSourceDetails('ai_sourceDetails'), fromGovernment: val('ai_fromGovernment'), fromInvestments: val('ai_fromInvestments'),
-    },
-    realEstate: {
+    } : undefined,
+    realEstate: sectionOn('realEstate') ? {
       hasInvestmentProperties: val('re_hasInvestment'),
       existingHome: {
         estimatedValue: val('reh_estimatedValue'), owner: val('reh_owner'), lender: val('reh_lender'),
@@ -1313,17 +1341,17 @@ function buildClientInfo() {
         monthlyRepayment: val('reh_monthlyRepayment'), isRefinance: val('reh_isRefinance'),
       },
       investmentProperties: readRepeatable(investmentRepeat.container),
-    },
-    assets: {
+    } : undefined,
+    assets: sectionOn('assets') ? {
       owned: checkedValues('assetChecks'), details: collectAssetDetails(), savingsAccounts: readRepeatable(savingsRepeat.container),
-    },
-    liabilities: {
+    } : undefined,
+    liabilities: sectionOn('liabilities') ? {
       types: checkedValues('liabilityChecks'), personalLoans: readRepeatable(personalLoanRepeat.container),
       creditCards: readRepeatable(creditCardRepeat.container),
-    },
-    ongoingExpenses: {
+    } : undefined,
+    ongoingExpenses: sectionOn('ongoingExpenses') ? {
       types: checkedValues('expenseChecks'), details: collectExpenseDetails(), otherDescription: val('oe_otherDescription'),
-    },
+    } : undefined,
   };
 }
 
@@ -1426,7 +1454,7 @@ function populateClientInfo(info) {
 // --- live progress bar ------------------------------------------------
 let progressTimer = null;
 function updateFormProgress() {
-  const { percent } = DocklioProgress.computeFormProgress(buildClientInfo());
+  const { percent } = DocklioProgress.computeFormProgress(buildClientInfo(), COMPANY_FORM_CONFIG);
   document.getElementById('formFill').style.width = percent + '%';
   document.getElementById('formPct').textContent = percent + '%';
 }

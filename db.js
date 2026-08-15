@@ -98,6 +98,17 @@ async function initSchema() {
   await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS brand_color TEXT NOT NULL DEFAULT '';`);
   await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS theme TEXT NOT NULL DEFAULT 'dark';`);
 
+  // --- company customization: which documents/form sections are used -----
+  // documentConfig: { [FILE_FIELDS name]: false } — a key is only ever
+  // written when a company turns a document OFF; anything absent (or set
+  // to anything other than false) is on by default. driversLicence/passport
+  // ignore this entirely (server- and client-side) since ID is always
+  // required. formConfig: { sections: { [name]: false } } — same on-by-
+  // default convention, for the handful of fully optional fact-find
+  // sections (realEstate/assets/liabilities/ongoingExpenses/additionalIncome).
+  await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS document_config JSONB NOT NULL DEFAULT '{}'::jsonb;`);
+  await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS form_config JSONB NOT NULL DEFAULT '{}'::jsonb;`);
+
   // --- indexes -------------------------------------------------------------
   // company_id isn't automatically indexed just by being a foreign key, and
   // it's the column every submissions query filters on — without this, the
@@ -121,6 +132,8 @@ function toCompany(row) {
     logoUrl: row.logo_url,
     brandColor: row.brand_color,
     theme: row.theme,
+    documentConfig: row.document_config,
+    formConfig: row.form_config,
     status: row.status,
     createdAt: row.created_at.toISOString(),
   };
@@ -153,12 +166,17 @@ async function slugExists(slug) {
 // Partial update — only the fields present in `fields` are touched, so a
 // caller can update just the logo without clobbering the business name, etc.
 async function updateCompanyBranding(id, fields) {
-  const columns = { businessName: "business_name", senderName: "sender_name", logoUrl: "logo_url", brandColor: "brand_color", theme: "theme" };
+  const columns = {
+    businessName: "business_name", senderName: "sender_name", logoUrl: "logo_url",
+    brandColor: "brand_color", theme: "theme",
+    documentConfig: "document_config", formConfig: "form_config",
+  };
+  const jsonColumns = new Set(["documentConfig", "formConfig"]);
   const sets = [];
   const values = [id];
   for (const [key, column] of Object.entries(columns)) {
     if (fields[key] === undefined) continue;
-    values.push(fields[key]);
+    values.push(jsonColumns.has(key) ? JSON.stringify(fields[key]) : fields[key]);
     sets.push(`${column} = $${values.length}`);
   }
   if (!sets.length) return getCompanyById(id);

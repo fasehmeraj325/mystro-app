@@ -117,7 +117,7 @@ function fmtSize(bytes) {
 }
 
 function updateProgressUI(data) {
-  const { percent } = DocklioProgress.computeDocProgress(data.clientInfo, data.files);
+  const { percent } = DocklioProgress.computeDocProgress(data.clientInfo, data.files, data.documentConfig);
   document.getElementById('docFill').style.width = percent + '%';
   document.getElementById('docPct').textContent = percent + '%';
 
@@ -218,7 +218,7 @@ async function uploadFile(field, file, section) {
 
 function renderDocFields(data) {
   const wrap = document.getElementById('docFieldsWrap');
-  const applicable = DocklioProgress.docApplicability(data.clientInfo);
+  const applicable = DocklioProgress.docApplicability(data.clientInfo, data.documentConfig);
   wrap.innerHTML = '';
 
   applicable.forEach((field) => {

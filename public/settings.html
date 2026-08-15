@@ -87,8 +87,27 @@
       </div>
     </form>
   </div>
+
+  <div class="card" style="margin-top:20px;">
+    <div class="section-title" style="margin-top:0;">Documents</div>
+    <p class="hint" style="margin:0 0 14px;">Every document type is requested by default. Turn off any your clients don't need to send — Driver's Licence and Passport are always required for ID and can't be turned off.</p>
+    <div id="docFieldList" class="config-checklist"></div>
+    <div class="actions">
+      <button type="button" class="primary" id="saveDocsBtn">Save changes</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px;">
+    <div class="section-title" style="margin-top:0;">Form sections</div>
+    <p class="hint" style="margin:0 0 14px;">Turn off any fact-find sections that don't apply to the clients you work with. Personal details, address, and employment always stay on — every application needs them.</p>
+    <div id="formSectionList" class="config-checklist"></div>
+    <div class="actions">
+      <button type="button" class="primary" id="saveFormBtn">Save changes</button>
+    </div>
+  </div>
 </div>
 
+<script src="/progress.js"></script>
 <script>
 let currentCompany = null;
 
@@ -115,6 +134,34 @@ function renderLogo(logoUrl) {
   }
 }
 
+function renderConfigChecklist(container, items, config, configKey) {
+  container.innerHTML = items.map(item => {
+    const checked = config[item.name] !== false;
+    return `
+      <label class="check config-check">
+        <input type="checkbox" data-name="${item.name}" ${checked ? 'checked' : ''} />
+        ${item.label}
+      </label>`;
+  }).join('');
+}
+
+function renderRequiredDocBadges(container) {
+  const badges = DocklioProgress.REQUIRED_FILE_FIELDS
+    .map(name => DocklioProgress.FILE_FIELDS.find(f => f.name === name))
+    .filter(Boolean)
+    .map(f => `<div class="check config-check config-check-locked">${f.label} <span class="opt">(always required)</span></div>`)
+    .join('');
+  container.insertAdjacentHTML('afterbegin', badges);
+}
+
+function readConfigChecklist(container) {
+  const result = {};
+  container.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    if (!cb.checked) result[cb.dataset.name] = false;
+  });
+  return result;
+}
+
 async function loadCompany() {
   const res = await fetch('/api/company');
   if (!res.ok) return;
@@ -127,6 +174,15 @@ async function loadCompany() {
   document.getElementById('theme').value = company.theme || 'dark';
   renderLogo(company.logoUrl);
   applyTopbarBranding(company);
+
+  const docConfig = company.documentConfig || {};
+  const docList = document.getElementById('docFieldList');
+  const configurableFields = DocklioProgress.FILE_FIELDS.filter(f => !DocklioProgress.REQUIRED_FILE_FIELDS.includes(f.name));
+  renderConfigChecklist(docList, configurableFields, docConfig);
+  renderRequiredDocBadges(docList);
+
+  const formSections = (company.formConfig && company.formConfig.sections) || {};
+  renderConfigChecklist(document.getElementById('formSectionList'), DocklioProgress.OPTIONAL_FORM_SECTIONS, formSections);
 }
 
 function applyTopbarBranding(company) {
@@ -170,6 +226,54 @@ document.getElementById('brandingForm').addEventListener('submit', async (e) => 
         brandColor: document.getElementById('brandColorHex').value.trim(),
         theme: document.getElementById('theme').value,
       }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Something went wrong');
+    showMsg('Saved.', 'ok');
+  } catch (err) {
+    showMsg(err.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save changes';
+  }
+});
+
+document.getElementById('saveDocsBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('saveDocsBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  document.getElementById('msg').className = 'msg hidden';
+
+  try {
+    const documentConfig = readConfigChecklist(document.getElementById('docFieldList'));
+    const res = await fetch('/api/company', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ documentConfig }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Something went wrong');
+    showMsg('Saved.', 'ok');
+  } catch (err) {
+    showMsg(err.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save changes';
+  }
+});
+
+document.getElementById('saveFormBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('saveFormBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  document.getElementById('msg').className = 'msg hidden';
+
+  try {
+    const sections = readConfigChecklist(document.getElementById('formSectionList'));
+    const res = await fetch('/api/company', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ formConfig: { sections } }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Something went wrong');

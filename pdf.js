@@ -1,4 +1,5 @@
 const PDFDocument = require("pdfkit");
+const { isFormSectionEnabled } = require("./public/progress");
 
 const BRAND = "#3a3aff";
 const INK = "#1a1d29";
@@ -92,7 +93,7 @@ function rows(doc, pairs) {
   pairs.forEach(([label, value]) => row(doc, label, value));
 }
 
-function buildClientPdf(res, submission) {
+function buildClientPdf(res, submission, formConfig) {
   const info = submission.clientInfo || {};
   const p = info.personal || {};
   const a = info.address || {};
@@ -203,20 +204,22 @@ function buildClientPdf(res, submission) {
     ]);
   }
 
-  sectionHeading(doc, "Additional Income");
-  rows(doc, [
-    ["From employment", ai.fromEmployment],
-    ["Source(s)", ai.sources],
-    ["From government", ai.fromGovernment],
-    ["From investments", ai.fromInvestments],
-  ]);
-  const sourceDetails = ai.sourceDetails || {};
-  Object.keys(sourceDetails).forEach((source) => {
-    const d = sourceDetails[source] || {};
-    subHeading(doc, source);
-    rows(doc, [["Frequency", d.frequency]]);
-    moneyRow(doc, "Monthly amount", d.monthlyAmount);
-  });
+  if (isFormSectionEnabled(formConfig, "additionalIncome")) {
+    sectionHeading(doc, "Additional Income");
+    rows(doc, [
+      ["From employment", ai.fromEmployment],
+      ["Source(s)", ai.sources],
+      ["From government", ai.fromGovernment],
+      ["From investments", ai.fromInvestments],
+    ]);
+    const sourceDetails = ai.sourceDetails || {};
+    Object.keys(sourceDetails).forEach((source) => {
+      const d = sourceDetails[source] || {};
+      subHeading(doc, source);
+      rows(doc, [["Frequency", d.frequency]]);
+      moneyRow(doc, "Monthly amount", d.monthlyAmount);
+    });
+  }
 
   if (secondApplicant) {
     const a2 = secondApplicant.address || {};
@@ -271,99 +274,107 @@ function buildClientPdf(res, submission) {
       ]);
     }
 
-    sectionHeading(doc, "Second Applicant — Additional Income");
-    rows(doc, [
-      ["From employment", ai2.fromEmployment], ["Source(s)", ai2.sources],
-      ["From government", ai2.fromGovernment], ["From investments", ai2.fromInvestments],
-    ]);
-    const sourceDetails2 = ai2.sourceDetails || {};
-    Object.keys(sourceDetails2).forEach((source) => {
-      const d = sourceDetails2[source] || {};
-      subHeading(doc, source);
-      rows(doc, [["Frequency", d.frequency]]);
-      moneyRow(doc, "Monthly amount", d.monthlyAmount);
+    if (isFormSectionEnabled(formConfig, "additionalIncome")) {
+      sectionHeading(doc, "Second Applicant — Additional Income");
+      rows(doc, [
+        ["From employment", ai2.fromEmployment], ["Source(s)", ai2.sources],
+        ["From government", ai2.fromGovernment], ["From investments", ai2.fromInvestments],
+      ]);
+      const sourceDetails2 = ai2.sourceDetails || {};
+      Object.keys(sourceDetails2).forEach((source) => {
+        const d = sourceDetails2[source] || {};
+        subHeading(doc, source);
+        rows(doc, [["Frequency", d.frequency]]);
+        moneyRow(doc, "Monthly amount", d.monthlyAmount);
+      });
+    }
+  }
+
+  if (isFormSectionEnabled(formConfig, "realEstate")) {
+    sectionHeading(doc, "Real Estate Assets");
+    row(doc, "Owns investment properties", re.hasInvestmentProperties);
+    subHeading(doc, "Existing home");
+    moneyRow(doc, "Estimated value", reh.estimatedValue);
+    row(doc, "Who owns this", reh.owner);
+    row(doc, "Lender", reh.lender);
+    moneyRow(doc, "Amount owing", reh.amountOwing);
+    moneyRow(doc, "Original loan amount", reh.originalLoanAmount);
+    rows(doc, [["Interest rate known", reh.interestRateKnown]]);
+    if (reh.interestRateKnown === "Yes") row(doc, "Interest rate", reh.interestRate ? `${reh.interestRate}%` : "");
+    rows(doc, [["Fixed rate", reh.isFixed]]);
+    moneyRow(doc, "Monthly repayment amount", reh.monthlyRepayment);
+    row(doc, "Is refinance", reh.isRefinance);
+
+    const investmentProperties = re.investmentProperties || [];
+    investmentProperties.forEach((prop, i) => {
+      subHeading(doc, `Investment property ${i + 1}`);
+      row(doc, "Address", prop.address);
+      moneyRow(doc, "Estimated value", prop.estimatedValue);
+      row(doc, "Who owns this", prop.owner);
+      moneyRow(doc, "Rent income", prop.rentIncome);
+      row(doc, "Is financed", prop.isFinanced);
+      row(doc, "Lender", prop.lender);
+      moneyRow(doc, "Amount owing", prop.amountOwing);
+      moneyRow(doc, "Original loan amount", prop.originalLoanAmount);
+      row(doc, "Interest rate known", prop.interestRateKnown);
+      if (prop.interestRateKnown === "Yes") row(doc, "Interest rate", prop.interestRate ? `${prop.interestRate}%` : "");
+      row(doc, "Fixed rate", prop.isFixed);
+      moneyRow(doc, "Monthly repayment amount", prop.monthlyRepayment);
+      row(doc, "Is refinance", prop.isRefinance);
     });
   }
 
-  sectionHeading(doc, "Real Estate Assets");
-  row(doc, "Owns investment properties", re.hasInvestmentProperties);
-  subHeading(doc, "Existing home");
-  moneyRow(doc, "Estimated value", reh.estimatedValue);
-  row(doc, "Who owns this", reh.owner);
-  row(doc, "Lender", reh.lender);
-  moneyRow(doc, "Amount owing", reh.amountOwing);
-  moneyRow(doc, "Original loan amount", reh.originalLoanAmount);
-  rows(doc, [["Interest rate known", reh.interestRateKnown]]);
-  if (reh.interestRateKnown === "Yes") row(doc, "Interest rate", reh.interestRate ? `${reh.interestRate}%` : "");
-  rows(doc, [["Fixed rate", reh.isFixed]]);
-  moneyRow(doc, "Monthly repayment amount", reh.monthlyRepayment);
-  row(doc, "Is refinance", reh.isRefinance);
+  if (isFormSectionEnabled(formConfig, "assets")) {
+    sectionHeading(doc, "Assets");
+    row(doc, "Assets owned", assets.owned);
+    const assetDetails = assets.details || {};
+    Object.keys(assetDetails).forEach((type) => {
+      const d = assetDetails[type] || {};
+      subHeading(doc, type);
+      row(doc, "Description", d.description);
+      moneyRow(doc, "Estimated value", d.estimatedValue);
+      row(doc, "Who owns this", d.owner);
+    });
+    const savingsAccounts = assets.savingsAccounts || [];
+    savingsAccounts.forEach((s, i) => {
+      subHeading(doc, `Savings account ${i + 1}`);
+      moneyRow(doc, "Savings amount", s.savingsAmount);
+      row(doc, "Financial institution", s.financialInstitution);
+      row(doc, "Who owns this", s.owner);
+    });
+  }
 
-  const investmentProperties = re.investmentProperties || [];
-  investmentProperties.forEach((prop, i) => {
-    subHeading(doc, `Investment property ${i + 1}`);
-    row(doc, "Address", prop.address);
-    moneyRow(doc, "Estimated value", prop.estimatedValue);
-    row(doc, "Who owns this", prop.owner);
-    moneyRow(doc, "Rent income", prop.rentIncome);
-    row(doc, "Is financed", prop.isFinanced);
-    row(doc, "Lender", prop.lender);
-    moneyRow(doc, "Amount owing", prop.amountOwing);
-    moneyRow(doc, "Original loan amount", prop.originalLoanAmount);
-    row(doc, "Interest rate known", prop.interestRateKnown);
-    if (prop.interestRateKnown === "Yes") row(doc, "Interest rate", prop.interestRate ? `${prop.interestRate}%` : "");
-    row(doc, "Fixed rate", prop.isFixed);
-    moneyRow(doc, "Monthly repayment amount", prop.monthlyRepayment);
-    row(doc, "Is refinance", prop.isRefinance);
-  });
+  if (isFormSectionEnabled(formConfig, "liabilities")) {
+    sectionHeading(doc, "Liabilities");
+    row(doc, "Liability types", liabilities.types);
 
-  sectionHeading(doc, "Assets");
-  row(doc, "Assets owned", assets.owned);
-  const assetDetails = assets.details || {};
-  Object.keys(assetDetails).forEach((type) => {
-    const d = assetDetails[type] || {};
-    subHeading(doc, type);
-    row(doc, "Description", d.description);
-    moneyRow(doc, "Estimated value", d.estimatedValue);
-    row(doc, "Who owns this", d.owner);
-  });
-  const savingsAccounts = assets.savingsAccounts || [];
-  savingsAccounts.forEach((s, i) => {
-    subHeading(doc, `Savings account ${i + 1}`);
-    moneyRow(doc, "Savings amount", s.savingsAmount);
-    row(doc, "Financial institution", s.financialInstitution);
-    row(doc, "Who owns this", s.owner);
-  });
+    const personalLoans = liabilities.personalLoans || [];
+    personalLoans.forEach((l, i) => {
+      subHeading(doc, `Personal loan ${i + 1}`);
+      row(doc, "Lender", l.lender);
+      row(doc, "Who owns this", l.owner);
+      moneyRow(doc, "Monthly repayment amount", l.monthlyRepayment);
+      moneyRow(doc, "Amount owing", l.amountOwing);
+      moneyRow(doc, "Original loan amount", l.originalLoanAmount);
+      row(doc, "Interest rate known", l.interestRateKnown);
+      if (l.interestRateKnown === "Yes") row(doc, "Interest rate", l.interestRate ? `${l.interestRate}%` : "");
+    });
 
-  sectionHeading(doc, "Liabilities");
-  row(doc, "Liability types", liabilities.types);
-
-  const personalLoans = liabilities.personalLoans || [];
-  personalLoans.forEach((l, i) => {
-    subHeading(doc, `Personal loan ${i + 1}`);
-    row(doc, "Lender", l.lender);
-    row(doc, "Who owns this", l.owner);
-    moneyRow(doc, "Monthly repayment amount", l.monthlyRepayment);
-    moneyRow(doc, "Amount owing", l.amountOwing);
-    moneyRow(doc, "Original loan amount", l.originalLoanAmount);
-    row(doc, "Interest rate known", l.interestRateKnown);
-    if (l.interestRateKnown === "Yes") row(doc, "Interest rate", l.interestRate ? `${l.interestRate}%` : "");
-  });
-
-  const creditCards = liabilities.creditCards || [];
-  creditCards.forEach((c, i) => {
-    subHeading(doc, `Credit card ${i + 1}`);
-    row(doc, "Lender", c.lender);
-    row(doc, "Who owns this", c.owner);
-    moneyRow(doc, "Monthly repayment amount", c.monthlyRepayment);
-    moneyRow(doc, "Credit limit", c.creditLimit);
-    moneyRow(doc, "Amount owing", c.amountOwing);
-    row(doc, "Interest rate known", c.interestRateKnown);
-    if (c.interestRateKnown === "Yes") row(doc, "Interest rate", c.interestRate ? `${c.interestRate}%` : "");
-  });
+    const creditCards = liabilities.creditCards || [];
+    creditCards.forEach((c, i) => {
+      subHeading(doc, `Credit card ${i + 1}`);
+      row(doc, "Lender", c.lender);
+      row(doc, "Who owns this", c.owner);
+      moneyRow(doc, "Monthly repayment amount", c.monthlyRepayment);
+      moneyRow(doc, "Credit limit", c.creditLimit);
+      moneyRow(doc, "Amount owing", c.amountOwing);
+      row(doc, "Interest rate known", c.interestRateKnown);
+      if (c.interestRateKnown === "Yes") row(doc, "Interest rate", c.interestRate ? `${c.interestRate}%` : "");
+    });
+  }
 
   const oe = info.ongoingExpenses || {};
-  if (Object.keys(oe).length) {
+  if (isFormSectionEnabled(formConfig, "ongoingExpenses") && Object.keys(oe).length) {
     sectionHeading(doc, "Ongoing Expenses");
     row(doc, "Expense types", oe.types);
     const expenseDetails = oe.details || {};
