@@ -146,7 +146,11 @@ async function checkDocumentQuality({ publicId, resourceType, format, mime, fiel
     const buffer = await fetchAsBuffer(url);
 
     const response = await gemini.models.generateContent({
-      model: "gemini-2.5-flash",
+      // "latest" is a Google-maintained alias, not a dated model — pinning
+      // to a specific dated model (e.g. gemini-2.5-flash) breaks outright
+      // once Google retires it for new API keys, which happens well before
+      // its published shutdown date.
+      model: "gemini-flash-latest",
       contents: [
         {
           role: "user",
