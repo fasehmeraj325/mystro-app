@@ -10,7 +10,7 @@
 <body>
 
 <div class="topbar">
-  <a href="/" class="brand"><span class="dot"></span> Docklio</a>
+  <a href="dashboard.html" class="brand"><span class="dot" id="brandDot"></span><img id="brandLogo" class="hidden" alt="" /> <span id="brandName">Docklio</span></a>
   <nav>
     <a href="dashboard.html">Dashboard</a>
     <a href="settings.html" class="active">Settings</a>
@@ -113,6 +113,21 @@ async function loadCompany() {
   document.getElementById('brandColorHex').value = company.brandColor || '';
   document.getElementById('theme').value = company.theme || 'dark';
   renderLogo(company.logoUrl);
+  applyTopbarBranding(company);
+}
+
+function applyTopbarBranding(company) {
+  const name = company.businessName || company.name;
+  document.getElementById('brandName').textContent = name;
+  document.title = `Settings — ${name}`;
+  if (company.logoUrl) {
+    document.getElementById('brandLogo').src = company.logoUrl;
+    document.getElementById('brandLogo').classList.remove('hidden');
+    document.getElementById('brandDot').classList.add('hidden');
+  } else {
+    document.getElementById('brandLogo').classList.add('hidden');
+    document.getElementById('brandDot').classList.remove('hidden');
+  }
 }
 
 document.getElementById('brandColorPicker').addEventListener('input', (e) => {
@@ -165,6 +180,7 @@ document.getElementById('logoInput').addEventListener('change', async () => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Upload failed.');
     renderLogo(data.logoUrl);
+    if (currentCompany) applyTopbarBranding({ ...currentCompany, logoUrl: data.logoUrl });
     showMsg('Logo updated.', 'ok');
   } catch (err) {
     showMsg(err.message, 'err');
@@ -178,6 +194,7 @@ document.getElementById('removeLogoBtn').addEventListener('click', async () => {
     const res = await fetch('/api/company/logo', { method: 'DELETE' });
     if (!res.ok) throw new Error('Could not remove logo.');
     renderLogo(null);
+    if (currentCompany) applyTopbarBranding({ ...currentCompany, logoUrl: '' });
     showMsg('Logo removed.', 'ok');
   } catch (err) {
     showMsg(err.message, 'err');

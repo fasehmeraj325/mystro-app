@@ -10,7 +10,7 @@
 <body>
 
 <div class="topbar">
-  <a href="/" class="brand"><span class="dot"></span> Docklio</a>
+  <a href="dashboard.html" class="brand"><span class="dot" id="brandDot"></span><img id="brandLogo" class="hidden" alt="" /> <span id="brandName">Docklio</span></a>
   <nav>
     <a href="dashboard.html" class="active">Dashboard</a>
     <a href="settings.html">Settings</a>
@@ -623,7 +623,7 @@ document.getElementById('logoutLink').addEventListener('click', async (e) => {
   window.location.href = '/';
 });
 
-async function loadCompanyLink() {
+async function loadCompanyBranding() {
   const res = await fetch('/api/company');
   if (!res.ok) return;
   const company = await res.json();
@@ -631,6 +631,15 @@ async function loadCompanyLink() {
   linkEl.href = company.applyUrl;
   linkEl.textContent = company.applyUrl;
   document.getElementById('previewFormBtn').href = company.applyUrl;
+
+  const name = company.businessName || company.name;
+  document.getElementById('brandName').textContent = name;
+  document.title = `Dashboard — ${name}`;
+  if (company.logoUrl) {
+    document.getElementById('brandLogo').src = company.logoUrl;
+    document.getElementById('brandLogo').classList.remove('hidden');
+    document.getElementById('brandDot').classList.add('hidden');
+  }
 }
 
 document.getElementById('copyLinkBtn').addEventListener('click', () => {
@@ -643,7 +652,7 @@ document.getElementById('copyLinkBtn').addEventListener('click', () => {
   });
 });
 
-loadCompanyLink();
+loadCompanyBranding();
 loadTable().then(() => {
   const openId = new URLSearchParams(window.location.search).get('open');
   if (openId) openModal(openId);
