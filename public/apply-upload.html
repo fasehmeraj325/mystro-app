@@ -10,7 +10,7 @@
 <body>
 
 <div class="topbar">
-  <a href="/" class="brand"><span class="dot"></span> <span id="brandName">Docklio</span></a>
+  <div class="brand"><span class="dot" id="brandDot"></span><img id="brandLogo" class="hidden" alt="" /> <span id="brandName">Docklio</span></div>
   <div class="step-pills">
     <span class="step-pill">1 Details</span>
     <span class="step-pill active">2 Documents</span>
@@ -232,6 +232,26 @@ function showMsg(text, type) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+async function loadBranding() {
+  if (!COMPANY_SLUG) return;
+  try {
+    const res = await fetch(`/api/public/companies/${encodeURIComponent(COMPANY_SLUG)}`);
+    if (!res.ok) return;
+    const company = await res.json();
+    if (company.logoUrl) {
+      document.getElementById('brandLogo').src = company.logoUrl;
+      document.getElementById('brandLogo').classList.remove('hidden');
+      document.getElementById('brandDot').classList.add('hidden');
+    }
+    if (company.brandColor) {
+      document.documentElement.style.setProperty('--brand', company.brandColor);
+      document.documentElement.style.setProperty('--brand-dark', company.brandColor);
+    }
+  } catch (e) {
+    // Non-critical — the page still works with default branding.
+  }
+}
+
 async function load() {
   if (!COMPANY_SLUG || !SUBMISSION_ID) return showNotFound();
   try {
@@ -273,6 +293,7 @@ document.getElementById('finishBtn').addEventListener('click', async () => {
   }
 });
 
+loadBranding();
 load();
 </script>
 

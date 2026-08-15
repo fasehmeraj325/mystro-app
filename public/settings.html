@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%234f46e5%27/%3E%3C/svg%3E" />
+<title>Settings — Docklio</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<div class="topbar">
+  <a href="/" class="brand"><span class="dot"></span> Docklio</a>
+  <nav>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="settings.html" class="active">Settings</a>
+    <a href="#" id="logoutLink">Log out</a>
+  </nav>
+</div>
+
+<div class="wrap">
+  <h1>Company settings</h1>
+  <p class="subtitle">Customize what your clients see on your application form — your logo, your name, your color.</p>
+
+  <div id="msg" class="msg hidden"></div>
+
+  <div class="card">
+    <div class="section-title" style="margin-top:0;">Logo</div>
+    <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+      <div id="logoPreviewWrap" style="width:72px; height:72px; border-radius:12px; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; overflow:hidden; background:#fafbfe; flex-shrink:0;">
+        <img id="logoPreview" src="" alt="Logo" style="max-width:100%; max-height:100%; display:none;" />
+        <span id="logoPlaceholder" style="color:var(--muted); font-size:11px; text-align:center;">No logo</span>
+      </div>
+      <div>
+        <label class="secondary" for="logoInput" style="display:inline-block; cursor:pointer;">Upload logo</label>
+        <input type="file" id="logoInput" accept="image/png,image/jpeg,image/webp,image/svg+xml" class="hidden" />
+        <button type="button" class="danger" id="removeLogoBtn" style="margin-left:8px;">Remove</button>
+        <p class="hint" style="margin:8px 0 0;">PNG, JPG, WEBP, or SVG. Shown at the top of your client-facing form instead of the Docklio mark.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px;">
+    <div class="section-title" style="margin-top:0;">Branding</div>
+    <form id="brandingForm">
+      <div class="grid2">
+        <div class="field">
+          <label for="businessName">Business name</label>
+          <input type="text" id="businessName" required />
+        </div>
+        <div class="field">
+          <label for="senderName">Sender name <span class="opt">(shown in emails to clients)</span></label>
+          <input type="text" id="senderName" placeholder="e.g. Jordan from Acme Finance" />
+        </div>
+        <div class="field">
+          <label for="brandColor">Brand color</label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <input type="color" id="brandColorPicker" value="#4f46e5" style="width:44px; height:38px; padding:2px; border:1px solid var(--line); border-radius:8px; cursor:pointer;" />
+            <input type="text" id="brandColorHex" placeholder="#4f46e5" style="flex:1;" />
+          </div>
+          <p class="hint" style="margin:6px 0 0;">Used for buttons and progress bars on your client-facing form. Leave blank for the default Docklio purple.</p>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit" class="primary" id="saveBtn">Save changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+let currentCompany = null;
+
+function showMsg(text, type) {
+  const msg = document.getElementById('msg');
+  msg.className = 'msg ' + type;
+  msg.textContent = text;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderLogo(logoUrl) {
+  const img = document.getElementById('logoPreview');
+  const placeholder = document.getElementById('logoPlaceholder');
+  const removeBtn = document.getElementById('removeLogoBtn');
+  if (logoUrl) {
+    img.src = logoUrl;
+    img.style.display = 'block';
+    placeholder.style.display = 'none';
+    removeBtn.classList.remove('hidden');
+  } else {
+    img.style.display = 'none';
+    placeholder.style.display = 'block';
+    removeBtn.classList.add('hidden');
+  }
+}
+
+async function loadCompany() {
+  const res = await fetch('/api/company');
+  if (!res.ok) return;
+  const company = await res.json();
+  currentCompany = company;
+  document.getElementById('businessName').value = company.businessName || '';
+  document.getElementById('senderName').value = company.senderName || '';
+  document.getElementById('brandColorPicker').value = company.brandColor || '#4f46e5';
+  document.getElementById('brandColorHex').value = company.brandColor || '';
+  renderLogo(company.logoUrl);
+}
+
+document.getElementById('brandColorPicker').addEventListener('input', (e) => {
+  document.getElementById('brandColorHex').value = e.target.value;
+});
+document.getElementById('brandColorHex').addEventListener('input', (e) => {
+  if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) {
+    document.getElementById('brandColorPicker').value = e.target.value;
+  }
+});
+
+document.getElementById('brandingForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  document.getElementById('msg').className = 'msg hidden';
+
+  try {
+    const res = await fetch('/api/company', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        businessName: document.getElementById('businessName').value,
+        senderName: document.getElementById('senderName').value,
+        brandColor: document.getElementById('brandColorHex').value.trim(),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Something went wrong');
+    showMsg('Saved.', 'ok');
+  } catch (err) {
+    showMsg(err.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save changes';
+  }
+});
+
+document.getElementById('logoInput').addEventListener('change', async () => {
+  const file = document.getElementById('logoInput').files[0];
+  if (!file) return;
+  document.getElementById('msg').className = 'msg hidden';
+
+  try {
+    const fd = new FormData();
+    fd.append('logo', file);
+    const res = await fetch('/api/company/logo', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload failed.');
+    renderLogo(data.logoUrl);
+    showMsg('Logo updated.', 'ok');
+  } catch (err) {
+    showMsg(err.message, 'err');
+  } finally {
+    document.getElementById('logoInput').value = '';
+  }
+});
+
+document.getElementById('removeLogoBtn').addEventListener('click', async () => {
+  try {
+    const res = await fetch('/api/company/logo', { method: 'DELETE' });
+    if (!res.ok) throw new Error('Could not remove logo.');
+    renderLogo(null);
+    showMsg('Logo removed.', 'ok');
+  } catch (err) {
+    showMsg(err.message, 'err');
+  }
+});
+
+document.getElementById('logoutLink').addEventListener('click', async (e) => {
+  e.preventDefault();
+  await fetch('/api/auth/logout', { method: 'POST' });
+  window.location.href = '/';
+});
+
+loadCompany();
+</script>
+
+</body>
+</html>

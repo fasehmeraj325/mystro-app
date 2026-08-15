@@ -93,6 +93,10 @@ async function initSchema() {
     ALTER TABLE submissions ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id);
   `);
 
+  // --- company branding (white-label) ---------------------------------
+  await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS logo_url TEXT NOT NULL DEFAULT '';`);
+  await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS brand_color TEXT NOT NULL DEFAULT '';`);
+
   // --- indexes -------------------------------------------------------------
   // company_id isn't automatically indexed just by being a foreign key, and
   // it's the column every submissions query filters on — without this, the
@@ -113,6 +117,8 @@ function toCompany(row) {
     slug: row.slug,
     businessName: row.business_name,
     senderName: row.sender_name,
+    logoUrl: row.logo_url,
+    brandColor: row.brand_color,
     status: row.status,
     createdAt: row.created_at.toISOString(),
   };
@@ -140,6 +146,22 @@ async function getCompanyById(id) {
 async function slugExists(slug) {
   const { rows } = await pool.query("SELECT 1 FROM companies WHERE slug = $1", [slug]);
   return rows.length > 0;
+}
+
+// Partial update — only the fields present in `fields` are touched, so a
+// caller can update just the logo without clobbering the business name, etc.
+async function updateCompanyBranding(id, fields) {
+  const columns = { businessName: "business_name", senderName: "sender_name", logoUrl: "logo_url", brandColor: "brand_color" };
+  const sets = [];
+  const values = [id];
+  for (const [key, column] of Object.entries(columns)) {
+    if (fields[key] === undefined) continue;
+    values.push(fields[key]);
+    sets.push(`${column} = $${values.length}`);
+  }
+  if (!sets.length) return getCompanyById(id);
+  const { rows } = await pool.query(`UPDATE companies SET ${sets.join(", ")} WHERE id = $1 RETURNING *`, values);
+  return rows[0] ? toCompany(rows[0]) : null;
 }
 
 // --- users -------------------------------------------------------------
@@ -419,6 +441,7 @@ module.exports = {
   getCompanyBySlug,
   getCompanyById,
   slugExists,
+  updateCompanyBranding,
   // users
   createUser,
   getUserByEmail,

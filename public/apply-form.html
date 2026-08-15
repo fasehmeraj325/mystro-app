@@ -10,7 +10,7 @@
 <body>
 
 <div class="topbar">
-  <a href="/" class="brand"><span class="dot"></span> <span id="brandName">Docklio</span></a>
+  <div class="brand"><span class="dot" id="brandDot"></span><img id="brandLogo" class="hidden" alt="" /> <span id="brandName">Docklio</span></div>
   <div class="step-pills">
     <span class="step-pill active">1 Details</span>
     <span class="step-pill">2 Documents</span>
@@ -940,6 +940,15 @@ async function resolveCompany() {
     document.getElementById('brandName').textContent = company.businessName || company.name;
     document.getElementById('formTitle').textContent = `${company.businessName || company.name} — Client Information`;
     document.title = `${company.businessName || company.name} — Client Onboarding`;
+    if (company.logoUrl) {
+      document.getElementById('brandLogo').src = company.logoUrl;
+      document.getElementById('brandLogo').classList.remove('hidden');
+      document.getElementById('brandDot').classList.add('hidden');
+    }
+    if (company.brandColor) {
+      document.documentElement.style.setProperty('--brand', company.brandColor);
+      document.documentElement.style.setProperty('--brand-dark', company.brandColor);
+    }
   } catch (e) {
     document.getElementById('formWrap').classList.add('hidden');
     document.getElementById('progressHeader').classList.add('hidden');

@@ -106,6 +106,24 @@ const upload = multer({
   },
 });
 
+// Separate from the document-upload `upload` above — that one streams
+// straight to Cloudinary via CloudinaryStorage (keyed off a submission id,
+// always `type: authenticated`), neither of which applies to a company
+// logo. This one buffers in memory (logos are small) so the route handler
+// can upload it itself as a public asset under a company-keyed folder.
+const logoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    if (!["image/jpeg", "image/png", "image/webp", "image/svg+xml"].includes(file.mimetype)) {
+      const err = new Error("Only JPG, PNG, WEBP, or SVG images are accepted for a logo.");
+      err.statusCode = 400;
+      return cb(err);
+    }
+    cb(null, true);
+  },
+});
+
 // --- AI document sanity-check --------------------------------------------
 // Optional: entirely skipped (returns null, never blocks an upload) unless
 // GEMINI_API_KEY is set (free tier at aistudio.google.com — no card needed).
@@ -362,7 +380,7 @@ app.use(
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:"],
+        imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
         fontSrc: ["'self'"],
         connectSrc: ["'self'"],
         objectSrc: ["'none'"],
@@ -403,8 +421,10 @@ if (!process.env.SESSION_SECRET) {
 // endpoint stay open — clients apply
 // without an account.
 app.get("/dashboard.html", apiLimiter, requireCompanyAuthPage);
+app.get("/settings.html", apiLimiter, requireCompanyAuthPage);
 app.use("/api/submissions", apiLimiter, requireCompanyAuthApi);
 app.use("/api/send-invite", apiLimiter, requireCompanyAuthApi);
+app.use("/api/company", apiLimiter, requireCompanyAuthApi);
 
 // Step 1 — client information form. Step 2 (document upload) is a separate
 // page/URL, keyed by the draft submission's id, so a client always lands on
@@ -661,15 +681,23 @@ app.post("/api/auth/reset-password", resetPasswordLimiter, async (req, res) => {
   }
 });
 
-// Public: look up a company by its application-link slug.
+// Public: look up a company by its application-link slug. Includes branding
+// (logo/color) so the client-facing form/upload pages can render the
+// company's own look instead of the default Docklio branding.
 app.get("/api/public/companies/:slug", asyncHandler(async (req, res) => {
   const company = await db.getCompanyBySlug(req.params.slug);
   if (!company || company.status !== "active") return res.status(404).json({ error: "Not found" });
-  res.json({ name: company.name, businessName: company.businessName });
+  res.json({
+    name: company.name,
+    businessName: company.businessName,
+    logoUrl: company.logoUrl || null,
+    brandColor: company.brandColor || null,
+  });
 }));
 
-// The logged-in company's own info (for showing its /apply/:slug link etc.)
-app.get("/api/company", requireCompanyAuthApi, asyncHandler(async (req, res) => {
+// The logged-in company's own info (for showing its /apply/:slug link etc.,
+// and for pre-filling the settings page).
+app.get("/api/company", asyncHandler(async (req, res) => {
   const company = await db.getCompanyById(req.companyId);
   if (!company) return res.status(404).json({ error: "Not found" });
   res.json({
@@ -677,8 +705,73 @@ app.get("/api/company", requireCompanyAuthApi, asyncHandler(async (req, res) => 
     slug: company.slug,
     businessName: company.businessName,
     senderName: company.senderName,
+    logoUrl: company.logoUrl || null,
+    brandColor: company.brandColor || null,
     applyUrl: `${APP_URL}/apply/${company.slug}`,
   });
+}));
+
+// Update branding — business name, sender name, and/or brand color. Logo is
+// handled separately below since it's a file upload, not JSON.
+app.patch("/api/company", asyncHandler(async (req, res) => {
+  const { businessName, senderName, brandColor } = req.body || {};
+  const fields = {};
+  if (businessName !== undefined) {
+    const trimmed = String(businessName).trim();
+    if (!trimmed) return res.status(400).json({ error: "Business name can't be empty." });
+    fields.businessName = trimmed.slice(0, 120);
+  }
+  if (senderName !== undefined) fields.senderName = String(senderName).trim().slice(0, 120);
+  if (brandColor !== undefined) {
+    const color = String(brandColor).trim();
+    if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) {
+      return res.status(400).json({ error: "Brand color must be a hex code like #4f46e5." });
+    }
+    fields.brandColor = color;
+  }
+
+  const updated = await db.updateCompanyBranding(req.companyId, fields);
+  if (!updated) return res.status(404).json({ error: "Not found" });
+  res.json({
+    businessName: updated.businessName,
+    senderName: updated.senderName,
+    logoUrl: updated.logoUrl || null,
+    brandColor: updated.brandColor || null,
+  });
+}));
+
+// Upload/replace the company logo. Unlike client documents, this is stored
+// as a normal public Cloudinary asset (type: "upload", not "authenticated")
+// since it needs to render directly on the public /apply/:slug page without
+// a signed-URL round trip. public_id is keyed off the company id with
+// overwrite: true, so re-uploading a new logo replaces the old asset in
+// place rather than orphaning it.
+app.post(
+  "/api/company/logo",
+  logoUpload.single("logo"),
+  asyncHandler(async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: "No file received." });
+
+    const logoUrl = await new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { folder: "docklio-logos", public_id: req.companyId, resource_type: "image", type: "upload", overwrite: true, invalidate: true },
+        (err, result) => (err ? reject(err) : resolve(result.secure_url))
+      );
+      uploadStream.end(req.file.buffer);
+    });
+
+    const updated = await db.updateCompanyBranding(req.companyId, { logoUrl });
+    res.status(201).json({ logoUrl: updated.logoUrl });
+  })
+);
+
+// Remove the logo, reverting to the default Docklio branding.
+app.delete("/api/company/logo", asyncHandler(async (req, res) => {
+  await cloudinary.uploader
+    .destroy(`docklio-logos/${req.companyId}`, { resource_type: "image", type: "upload" })
+    .catch((err) => console.error("Failed to remove logo:", err.message));
+  await db.updateCompanyBranding(req.companyId, { logoUrl: "" });
+  res.json({ ok: true });
 }));
 
 // --- API: public two-step intake (draft -> upload docs -> finish) ------
